@@ -1,0 +1,56 @@
+---
+global_modules: 
+  - globals
+  - secrets
+
+
+hello_world:
+  module: hello
+  class: HelloWorld
+  
+
+garage:
+  module: garage
+  class: Garage
+  global_dependencies: globals
+  dependencies: function_library
+
+bot:
+  module: telegram
+  class: TelegramBot
+  global_dependencies: globals
+  dependencies: 
+    - garage
+    - function_library
+    - auto_lights
+    - house_mode
+    - squeezebox_control
+
+function_library:
+  module: function_library  
+  class: FunctionLibrary
+
+kitchen:
+  module: kitchen
+  class: Kitchen
+  global_dependencies: globals
+  dependencies: function_library
+
+calendar:
+  module: calendar
+  class: Calendar
+  global_dependencies: 
+    - globals
+  dependencies:
+    - car
+    - doorphone
+    - function_library
+    - garage
+    - house_mode
+    - squeezebox_control
+
+max_automations:
+  module: max
+  class: Max
+  global_dependencies: globals
+  dependencies: function_library
