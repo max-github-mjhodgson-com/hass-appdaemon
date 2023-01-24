@@ -30,7 +30,7 @@ class Calendar(hass.Hass):
     DoorPhoneLibrary = self.get_app("doorphone")
 
     global CarLibrary
-    CarPhoneLibrary = self.get_app("car")
+    CarLibrary = self.get_app("car")
 
     # Listen for events:
     self.listen_event(self.on_calendar_event, entity_id = globals.house_calendar)
