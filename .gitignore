@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Max's
+common/secrets.py
+secrets.py
+__pycache__
+*~
