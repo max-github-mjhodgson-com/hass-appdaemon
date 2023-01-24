@@ -1,4 +1,8 @@
 # Global Variables
+#
+# Max Hodgson 2023
+#
+# This requires a secrets.py, in the same variable definition format as this file.
 import secrets
 
 # Max
