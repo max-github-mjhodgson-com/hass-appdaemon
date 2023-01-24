@@ -33,7 +33,10 @@ class Doorphone(hass.Hass):
     
     global camera_image_url  # Uses http as it is on the internal network.
     camera_image_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/front_doorbell/latest.jpg"
-    camera_image_name = '/config/media/cctv/front_doorbell/tmp/frontdoor_latest.jpg'
+    global camera_image_path
+    camera_image_path = "/config/media/cctv/front_doorbell/tmp/"
+    global camera_image_name
+    camera_image_name = camera_image_path + "frontdoor_latest.jpg"
 
     self.mqtt = self.get_plugin_api("MQTT")
 
@@ -89,7 +92,6 @@ class Doorphone(hass.Hass):
     elif new == "1102":
       self.system_rebooted()
   
-   
   # Motion undetected via timer timeout.
   def on_motion_undetected(self, event, data, kwargs):
     #self.log("Motion Un-detected.")
@@ -148,35 +150,35 @@ class Doorphone(hass.Hass):
         self.turn_on("input_boolean.doorbell_pressed")
         self.listen_for_reset_doorbell_pressed = self.listen_event(self.reset_doorbell_pressed_flag, "reset_doorbell_pressed_flag", oneshot=True)
   
-  
   # System has booted.
   def on_doorphone_system_up(self, entity, attribute, old, new, kwargs):
     doorphone_up_message = "Doorphone System Up."
-    self.log(doorphone_up_message)
+    reboot_snapshot_filename = camera_image_path + "doorphone_bootup_picture.jpg"
     #self.call_service("python_script/set_state", entity_id = doorphone_event_type, state = "0")
     self.set_state(doorphone_event_type, state = '0')
     if self.now_is_between("01:29:00", "01:35:00"):  # Nightly reboot, just send an email.
       self.log("Sending email.")
       #self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
     else:
-      #self.call_service(globals.notify_max_all, title = "Doorphone Alert", message = doorphone_up_message)
-      #self.run_in(self.take_picture(camera_location="frontdoor", picture_type="bootup", picture_caption = doorphone_up_message), 20)
-      self.run_in(self.get_latest_camera_picture(camera_image_url, "doorphone_bootup_picture"), 20)
+      self.run_in(self.get_latest_camera_picture, 10, image_url = camera_image_url, image_filename = reboot_snapshot_filename)
+      self.run_in(self.take_reboot_picture, 20, doorphone_up_message = doorphone_up_message, reboot_snapshot_filename = reboot_snapshot_filename)
   
-  # When doorphone drops off network
+  # When doorphone drops off network:
   def on_doorphone_dropped_off_network(self, entity, attribute, old, new, kwargs):
     self.log("Doorphone no ping.")
-    #if self.now_is_between(self.reboot_start_time, self.reboot_end_time):
     if self.now_is_between(globals.reboot_start_time, globals.reboot_end_time):
+      self.log("Doorphone is within daily reboot period")
+    else:
       self.log("Doorphone has stopped responding to pings.")
-  
+      self.call_service(globals.max_telegram, title = "Doorphone Ping Alert.", message = "Doorphone has dropped off the network.")
 
   def on_mqtt_message_received_event(self, eventname, data, *args):
   # http://192.168.101.5:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
     self.log("MQTT New Version")
     true = 1
     false = 0
-    media_base_path = "globals.cctv_media_location"
+    null = "null"
+    media_base_path = globals.cctv_media_location
     video_base_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/events/"
     payload = eval(data['payload'])
     #event_camera = data['topic']['before']['camera']
@@ -285,7 +287,6 @@ class Doorphone(hass.Hass):
     else:
       self.call_service(globals.notify_max_all, title = reboot_title, message = reboot_message)
 
-
   # Take a picture and send it (by Telegram).
   def take_picture(self, camera_location, picture_type, picture_caption):
     self.log("Take picture."+picture_type)
@@ -293,23 +294,30 @@ class Doorphone(hass.Hass):
     image_timestamp = datetime.strftime(self.datetime(), '%Y%m%d_%H%M%S')
     directory_datestamp = datetime.strftime(self.datetime(), '%Y/%b/%d-%a')
     timed_snapshot_filename = globals.cctv_media_location+"/"+camera_location+"/"+directory_datestamp+"/"+"/"+camera_location+"_"+picture_type+"."+image_timestamp+".jpg"
-    self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = snapshot_filename) # Sometimes it fails to get a new picture,
-    self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = snapshot_filename) # so, one for luck.
-    self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = timed_snapshot_filename)
-    #self.get_latest_camera_picture(camera_image_url, snapshot_filename)
+    #self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = snapshot_filename) # Sometimes it fails to get a new picture,
+    #self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = snapshot_filename) # so, one for luck.
+    #self.call_service("camera/snapshot", entity_id = globals.frontdoor_camera, filename = timed_snapshot_filename)
+    self.get_latest_camera_picture(image_url = camera_image_url, image_filename = timed_snapshot_filename)
+    self.get_latest_camera_picture(image_url = camera_image_url, image_filename = snapshot_filename)
     self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = picture_caption)
 
   def reset_doorbell_pressed_flag(self, event_name, data, kwargs):
     self.log("Doorbell Pressed Reset Flag.")
     self.turn_off("input_boolean.doorbell_pressed")
 
-  def take_reboot_picture(self, doorphone_up_message):
+  def take_reboot_picture(self, kwargs):
+    doorphone_up_message = kwargs["doorphone_up_message"]
+    reboot_snapshot_filename = kwargs["reboot_snapshot_filename"]
     #self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
     self.log(doorphone_up_message)
+    self.call_service("telegram_bot/send_photo", file = reboot_snapshot_filename, caption = doorphone_up_message)
 
-  def get_latest_camera_picture(self, image_url, image_name):
+  #def get_latest_camera_picture(self, image_url, image_name):
+  def get_latest_camera_picture(self, kwargs):
+    image_url = kwargs["image_url"]
+    image_filename = kwargs["image_filename"]
     img_data = requests.get(image_url).content
-    with open(image_name, 'wb') as handler:
+    with open(image_filename, 'wb') as handler:
       handler.write(img_data)
 
   def disable_alert(self, kwargs):
