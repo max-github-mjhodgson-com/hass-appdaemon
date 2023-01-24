@@ -174,6 +174,8 @@ class Doorphone(hass.Hass):
   def on_mqtt_message_received_event(self, eventname, data, *args):
   # http://192.168.101.5:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
     self.log("MQTT New Version")
+    true = 1
+    false = 0
     media_base_path = "globals.cctv_media_location"
     video_base_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/events/"
     payload = eval(data['payload'])
