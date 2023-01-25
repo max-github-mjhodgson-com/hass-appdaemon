@@ -1,0 +1,12 @@
+---
+global_modules: globals
+
+car:
+  module: car  
+  class: Car
+  #event_type_sensor:  sensor.doorphone_event_type
+  global_dependencies: 
+    - globals
+  #dependencies:
+  #  - asterisk_comms
+  
