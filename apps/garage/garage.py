@@ -1,5 +1,5 @@
 # Garage Control Script.
-# (C) 2021 Max Hodgson
+# Max Hodgson 2021
 # Version: 02092021.01
 
 import appdaemon.plugins.hass.hassapi as hass
@@ -102,7 +102,6 @@ class Garage(hass.Hass):
     finally:
       self.log("Open time listener was cancelled.")
     self.garage_close_time_handler = self.listen_state(self.on_close_time_select, globals.garage_input_number_garage_close_timer)
-    #time.sleep(1)
     #self.garage_door_timer_handler = self.listen_event(self.on_garage_door_no_motion_timer_finished, "timer.finished", entity_id =  "timer.garage_door_auto_close_no_motion" )
     if FunctionLibrary.is_house_occupied() != 1:  # 0 is Out, 1 is Home, 2 is Asleep.
       door_power_state = self.get_state(globals.garage_door_power_switch)
@@ -379,11 +378,11 @@ class Garage(hass.Hass):
 # Other functions:
 ###############################################################################################################
 
-  def close_garage(self, *kwargs):
+  def close_garage(self):
     self.log("Garage Door CLOSE function called.")
     self.call_service("cover/close_cover", entity_id = globals.garage_door_entity)
 
-  def open_garage(self, *kwargs):
+  def open_garage(self):
     self.log("Garage Door OPEN function called.")
     self.call_service("cover/open_cover", entity_id = globals.garage_door_entity)
 
