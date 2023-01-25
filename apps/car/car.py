@@ -18,8 +18,8 @@ class Car(hass.Hass):
     self.log("running at {}.".format(now))
     
     global longterm_update_handler
-    longterm_update_handler = 0
-    #longterm_update_handler = self.run_every(self.refresh_car_status, "now", 4 * 60 * 60)
+    #longterm_update_handler = 0
+    longterm_update_handler = self.run_every(self.refresh_car_status, "now", 4 * 60 * 60)
     global car_run_update_handler
     car_run_update_handler = 0
     global longterm_time_gap
@@ -31,6 +31,8 @@ class Car(hass.Hass):
     ignition_status = self.get_state(globals.car_ignition_status)
     if ignition_status != "unavailable":
       self.log("Initial ignition status: " + ignition_status)
+    else:
+      self.log("Car data is unavailable.")
 
     global lock_status
     lock_status = self.get_state(globals.car_lock)
@@ -108,6 +110,7 @@ class Car(hass.Hass):
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
     self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status, new = "NOTSET", old = "SET")
     self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, duration = 30)
+    self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position)
 
 ###############################################################################################################
 # Callback functions:
@@ -153,29 +156,28 @@ class Car(hass.Hass):
         if window_status == "closed":
           self.cancel_timer(car_run_update_handler)
           longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
-      #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
+        elif window_status == "open":
+          self.log("Windows are still open.")
+          # Create a sensor for Home Assistant builtin alerts.
+          #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
 
   def on_ignition_change(self, entity, attribute, old, new, kwargs):
-    #global longterm_update_handler
-    #global car_run_update_handler
-    if old != "unavailable":
+    if old != "unavailable" or new != "unavailable":
       self.log("On ignition change: " + str(old))
-      self.log("Longterm update handler: " + str(longterm_update_handler))
-
       ignition_status = new
       self.log("Ignition status has changed: " + ignition_status)
       lock_status = self.get_state(globals.car_lock)
       self.log("Lock status: " + lock_status)
-      self.log("Four hour handler id: " + str(longterm_update_handler))
-      self.log("Car run handler id: " + str(car_run_update_handler))
-      if new == "Run":
-        self.log("Car is running update handler.")
-        self.cancel_timer(longterm_update_handler)
-        car_run_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
-      elif new == "Off":
-        self.log("Car is off update handler.")
-        self.cancel_timer(car_run_update_handler)
-        longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
+      #self.log("Four hour handler id: " + str(longterm_update_handler))
+      #self.log("Car run handler id: " + str(car_run_update_handler))
+      #if new == "Run":
+      #  self.log("Car is running update handler.")
+      #  self.cancel_timer(longterm_update_handler)
+      #  car_run_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
+      #elif new == "Off":
+      #  self.log("Car is off update handler.")
+      #  self.cancel_timer(car_run_update_handler)
+      #  longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
 
   def on_battery_state_changed(self, entity, attribute, old, new, kwargs):
     if new == "STATUS_LOW" and old != "unavailable":
@@ -192,12 +194,14 @@ class Car(hass.Hass):
   def on_message_count_change(self, entity, attribute, old, new, kwargs):
     current_message_count = self.get_state(globals.car_messages)
     self.log("Old message count: " + str(old))
-    if new > old:
-      self.log("New message has arrived.")
-      #current_message_count = self.get_state(globals.car_messages)
-      self.log("Current number of messages: " + current_message_count)
-    elif new < old:
-      self.log("Message deleted. Current number of messages: " + str(current_message_count))
+    self.log("New message count: " + str(new))
+    if old != "unavailable" or new != "unavailable":
+      if new > old:
+        self.log("New message has arrived.")
+        #current_message_count = self.get_state(globals.car_messages)
+        self.log("Current number of messages: " + current_message_count)
+      elif new < old:
+        self.log("Message deleted. Current number of messages: " + str(current_message_count))
 
     #message_list = current_messages["attributes"]
     #self.log(message_list.keys())
@@ -205,7 +209,7 @@ class Car(hass.Hass):
     #self.log(first_message)
 
   def on_zone_change(self, entity, attribute, old, new, kwargs):
-    if new != "unavailable":
+    if old != "unavailable" or new != "unavailable":
       self.log("Zone changed: " + new)
       if old == "Home_b":
         self.log("Home B departed.")
@@ -214,10 +218,6 @@ class Car(hass.Hass):
         GarageLibrary.close_garage_and_power_off
       if old == "PBM":
         self.log("PBM Location departed.")
-    else:
-      self.log("Location unavailable")
-  
-    if old != "unavailable":
       if new == "home":
         self.log("Home L arrived.")
         GarageLibrary.switch_on_garage_door
@@ -225,6 +225,18 @@ class Car(hass.Hass):
         self.log("Home B arrived.")
       elif new == "PBM":
         self.log("PBM Location arrived.")
+    else:
+      self.log("Current/Previous Location unavailable")
+  
+  def on_window_state_change(self, entity, attribute, old, new, kwargs):
+      self.log("Window state has changed: " + str(new))
+      if self.get_state(globals.car_alarm_status) == "SET":
+        if old == "open" and new == "closed":
+          # To do: Change sensor to turn off builtin Home Assistant alerts.
+          self.log("Windows closed.")
+        elif old == "closed" and new == "open":
+          # To do: Change sensor to turn on builtin Home Assistant alerts.
+          self.log("Windows opened.")
 
 ###############################################################################################################
 # Other functions:
