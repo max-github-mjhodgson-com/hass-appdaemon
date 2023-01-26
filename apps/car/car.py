@@ -7,8 +7,11 @@ from datetime import timedelta
 from datetime import datetime
 import globals
 
-# Fordpass message format:
+# Fordpass message formats:
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
+# Date and Time:
+# 01/23/2023 09:32:19 AM
+
 
 class Car(hass.Hass):
 
@@ -25,7 +28,6 @@ class Car(hass.Hass):
     
     global longterm_update_handler
     self.longterm_update_handler = 0
-    #longterm_update_handler = self.run_every(self.refresh_car_status, "now", 4 * 60 * 60)
     global shortterm_update_handler
     self.shortterm_update_handler = 0
     global longterm_time_gap
@@ -61,42 +63,20 @@ class Car(hass.Hass):
     if battery_status == "STATUS_LOW":
       self.log("Car battery is low.")
     
-    global current_message_count
+    #global current_message_count
     current_message_count = self.get_state(globals.car_messages)
     if current_message_count != "unavailable":
-      self.log("Current number of messages: " + current_message_count)
-      current_messages = self.get_state(globals.car_messages, attribute = "all")
-      self.log("Current messages: " + str(current_messages))
-      message_list = current_messages["attributes"]
-      self.log(message_list.keys())
-      first_message = list(message_list.keys())[0]
-      message_date_and_time = list(message_list.values())[0]
-      self.log("Message date and time: " + str(message_date_and_time))
-      self.log("First message: " + str(first_message))
-      
-      self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
-      if first_message == "Remote features disabled to preserve battery":
-        self.log("Remote features disabled.")
-      elif first_message.find("SecuriAlert") != -1:
-        alert_item_start = first_message.index("-") + 2
-        alert_item_end = first_message.index(":")
-        alert_item = first_message[alert_item_start:alert_item_end]
-        self.log("Alert Item: " + str(alert_item))
-        alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
-        self.log("Alert Date: " + str(alert_date))
-        alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
-        self.log("Alert Time" + str(alert_time))
-        self.log("SecuriAlert")
-        self.set_state("sensor.fordpass_security_alert", state="On", attributes = {"friendly_name": "Ford Pass Security Alert", "detail": alert_item, "date": alert_date, "time": alert_time})
-        # TO DO: Clear alert in x hours.
+      securialert_status, message_new, return_message = self.get_fordpass_messages(current_message_count)
+      self.log("securialert_status: " + securialert_status)
+      self.log("message_new: " + message_new)
+      self.log ("Return message: " + return_message)
+
 
     # Get current car position
     global car_current_position_longtitude
     car_current_position_longtitude = self.get_state(globals.car_tracker, attribute="longtitude")
     global car_current_position_latitude
     car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
-
-    
      
     #if ignition_status == "Off" or alarm_status == "SET":
     if alarm_status == "SET" and window_status == "Closed":
@@ -185,7 +165,6 @@ class Car(hass.Hass):
     self.call_service(globals.car_refresh) 
     self.log("Refresh pressed.")
 
-  # To do get the message processing into here.
   def on_message_count_change(self, entity, attribute, old, new, kwargs):
     current_message_count = self.get_state(globals.car_messages)
     self.log("Old message count: " + str(old))
@@ -193,15 +172,14 @@ class Car(hass.Hass):
     if old != "unavailable" or new != "unavailable":
       if new > old:
         self.log("New message has arrived.")
-        #current_message_count = self.get_state(globals.car_messages)
+        current_message_count = self.get_state(globals.car_messages)
+        securialert_status, message_new, return_message = self.get_fordpass_messages(current_message_count)
+        self.log("securialert_status: " + securialert_status)  # To do: Raise a noticable notification
+        self.log("message_new: " + message_new) # To do: Raise a notification if message is newer than x hours.
+        self.log ("Return message: " + return_message)
         self.log("Current number of messages: " + current_message_count)
       elif new < old:
         self.log("Message deleted. Current number of messages: " + str(current_message_count))
-
-    #message_list = current_messages["attributes"]
-    #self.log(message_list.keys())
-    #first_message = list(message_list.keys())[0]
-    #self.log(first_message)
 
   def on_zone_change(self, entity, attribute, old, new, kwargs):
     if old != "unavailable" or new != "unavailable":
@@ -263,3 +241,44 @@ class Car(hass.Hass):
     self.longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
     self.shortterm_update_handler = 0
 
+  
+  def get_fordpass_messages(self, number_of_messages):
+    self.log("Number of messages:" + str(number_of_messages))
+    
+    securialert_status = "off"
+    message_new = "off"  # To do
+    return_message = "None"
+
+    current_messages = self.get_state(globals.car_messages, attribute = "all")
+    self.log("Current messages: " + str(current_messages))
+
+    current_messages = self.get_state(globals.car_messages, attribute = "all")
+    self.log("Current messages: " + str(current_messages))
+    message_list = current_messages["attributes"]
+    self.log(message_list.keys())
+    first_message = list(message_list.keys())[0]
+    message_date_and_time = list(message_list.values())[0]
+    self.log("Message date and time: " + str(message_date_and_time))
+    self.log("First message: " + str(first_message))
+
+    if first_message == "Remote features disabled to preserve battery":
+      self.log("Remote features disabled.")
+      return_message = first_message
+    elif first_message == "Tyre Pressure Monitor System Warning":
+      self.log("Tyre pressure warning.")
+      return_message = first_message
+    elif first_message.find("SecuriAlert") != -1:
+      securialert_status = "on"
+      alert_item_start = first_message.index("-") + 2
+      alert_item_end = first_message.index(":")
+      alert_item = first_message[alert_item_start:alert_item_end]
+      self.log("Alert Item: " + str(alert_item))
+      alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
+      self.log("Alert Date: " + str(alert_date))
+      alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
+      self.log("Alert Time" + str(alert_time))
+      self.log("SecuriAlert")
+      return_message = alert_item
+    # self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
+    # TO DO: Clear alert in x hours.
+    return securialert_status, message_new, return_message
