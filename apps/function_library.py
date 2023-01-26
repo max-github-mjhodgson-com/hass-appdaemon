@@ -44,12 +44,14 @@ class FunctionLibrary(hass.Hass):
     if self.get_state(globals.vacation_calendars[person]) == "on":
       working_day_return_code = 1
       working_day="off"
-    if self.get_state(globals.workday_sensor) == "on" or self.get_state("calendar.england_holidays") == "on":
+    elif self.get_state(globals.workday_sensor) == "on" or self.get_state("calendar.england_holidays") == "on":
       working_day_return_code = 2
       working_day="off"
-    if self.get_state(globals.away_calendars[person]) == "on":
+    elif self.get_state(globals.away_calendars[person]) == "on":
       working_day_return_code = 3
       working_day="off"
+    else:
+      working_day="on"
 
     friendly_name = self.get_state("person."+ person, attribute = "friendly_name")
     self.set_state("sensor.non_working_day_"+person, state=working_day, attributes = {"friendly_name": "Non-working day for "+friendly_name, "detail": None})
