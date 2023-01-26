@@ -37,20 +37,23 @@ class FunctionLibrary(hass.Hass):
     # This will check the personal calendar for the "person" for vacation.
     # To do: have options for a group.
     # Set default return codes.
-    return_code = 0
+    working_day_return_code = 0
     working_day="off"
 
+    self.log("here")
+    self.log(self.get_state(globals.vacation_calendars["max"]))
     # Check the person's calendar.
     if self.get_state(globals.vacation_calendars[person]) == "on":
       working_day_return_code = 1
       working_day="off"
-    elif self.get_state(globals.workday_sensor) == "on" or self.get_state("calendar.england_holidays") == "on":
+    elif self.get_state(globals.workday_sensor) == "off" or self.get_state("calendar.england_holidays") == "on":
       working_day_return_code = 2
       working_day="off"
     elif self.get_state(globals.away_calendars[person]) == "on":
       working_day_return_code = 3
       working_day="off"
     else:
+      working_day_return_code = 0
       working_day="on"
 
     friendly_name = self.get_state("person."+ person, attribute = "friendly_name")
