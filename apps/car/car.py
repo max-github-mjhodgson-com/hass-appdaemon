@@ -11,17 +11,23 @@ import globals
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
 
 class Car(hass.Hass):
-  
+
   def initialize(self):
     self.log("=" * 30)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
     
+    global FunctionLibrary  
+    FunctionLibrary = self.get_app("function_library")
+
+    global GarageLibrary
+    GarageLibrary = self.get_app("garage")
+    
     global longterm_update_handler
-    #longterm_update_handler = 0
-    longterm_update_handler = self.run_every(self.refresh_car_status, "now", 4 * 60 * 60)
-    global car_run_update_handler
-    car_run_update_handler = 0
+    self.longterm_update_handler = 0
+    #longterm_update_handler = self.run_every(self.refresh_car_status, "now", 4 * 60 * 60)
+    global shortterm_update_handler
+    self.shortterm_update_handler = 0
     global longterm_time_gap
     longterm_time_gap = 4 # Hours
     global shortterm_time_gap
@@ -40,8 +46,9 @@ class Car(hass.Hass):
       self.log("Initial door lock status: " + lock_status)
 
     global window_status
-    if lock_status != "unavailable":
-      window_status = self.get_state(globals.car_window_position, attribute="all")
+    if window_status != "unavailable":
+      window_status = self.get_state(globals.car_window_position, attribute="state")
+      self.log("Window status: " + str(window_status))
 
     global alarm_status
     alarm_status = self.get_state(globals.car_alarm)
@@ -59,11 +66,14 @@ class Car(hass.Hass):
     if current_message_count != "unavailable":
       self.log("Current number of messages: " + current_message_count)
       current_messages = self.get_state(globals.car_messages, attribute = "all")
-      self.log("Current number of messages: " + str(current_messages))
+      self.log("Current messages: " + str(current_messages))
       message_list = current_messages["attributes"]
       self.log(message_list.keys())
       first_message = list(message_list.keys())[0]
+      message_date_and_time = list(message_list.values())[0]
+      self.log("Message date and time: " + str(message_date_and_time))
       self.log("First message: " + str(first_message))
+      
       self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
       if first_message == "Remote features disabled to preserve battery":
         self.log("Remote features disabled.")
@@ -76,6 +86,7 @@ class Car(hass.Hass):
         self.log("Alert Date: " + str(alert_date))
         alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
         self.log("Alert Time" + str(alert_time))
+        self.log("SecuriAlert")
         self.set_state("sensor.fordpass_security_alert", state="On", attributes = {"friendly_name": "Ford Pass Security Alert", "detail": alert_item, "date": alert_date, "time": alert_time})
         # TO DO: Clear alert in x hours.
 
@@ -85,21 +96,16 @@ class Car(hass.Hass):
     global car_current_position_latitude
     car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
 
-    global FunctionLibrary  
-    FunctionLibrary = self.get_app("function_library")
-
-    global GarageLibrary
-    GarageLibrary = self.get_app("Garage")
-   
+    
+     
     #if ignition_status == "Off" or alarm_status == "SET":
-    if alarm_status == "SET":
-      self.log("Setting updates for " + str(longterm_time_gap) + " hours.")
-      #longterm_update_handler = self.run_every(self.refresh_car_status, 1 * 60 * 60, 4 * 60 * 60)
-      longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
-      self.log(longterm_update_handler)
+    if alarm_status == "SET" and window_status == "Closed":
+      self.log("Run long term timer.")
+      self.enable_long_timer()
     elif alarm_status == "NOTSET":
     #elif ignition_status == "run":
-      car_run_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
+      self.log("Short term timer.")
+      self.enable_short_timer()
 
     self.unlock_handle = self.listen_state(self.on_car_unlocked, globals.car_lock, old = "locked", new = "unlocked", duration = 30)
     self.lock_handle = self.listen_state(self.on_car_locked, globals.car_lock, old = "unlocked", new = "locked", duration = 30)
@@ -110,7 +116,7 @@ class Car(hass.Hass):
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
     self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status, new = "NOTSET", old = "SET")
     self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, duration = 30)
-    self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position)
+    self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position, attribute = "state")
 
 ###############################################################################################################
 # Callback functions:
@@ -142,8 +148,7 @@ class Car(hass.Hass):
       self.log("Alarm Unset.")
       if new == "NOTSET":
         self.log("Car alarm is OFF.")
-        self.cancel_timer(longterm_update_handler)
-        car_run_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
+        self.enable_short_timer()
         #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
         self.call_service(globals.max_app, title = "Car alarm disarmed.",\
                                            message = "TTS",\
@@ -154,12 +159,10 @@ class Car(hass.Hass):
         # and windows are closed?
         window_status = self.get_state(globals.car_window_position, attribute="all")
         if window_status == "closed":
-          self.cancel_timer(car_run_update_handler)
-          longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
+          self.enable_long_timer()
         elif window_status == "open":
           self.log("Windows are still open.")
-          # Create a sensor for Home Assistant builtin alerts.
-          #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
+          self.enable_short_timer()
 
   def on_ignition_change(self, entity, attribute, old, new, kwargs):
     if old != "unavailable" or new != "unavailable":
@@ -168,16 +171,7 @@ class Car(hass.Hass):
       self.log("Ignition status has changed: " + ignition_status)
       lock_status = self.get_state(globals.car_lock)
       self.log("Lock status: " + lock_status)
-      #self.log("Four hour handler id: " + str(longterm_update_handler))
-      #self.log("Car run handler id: " + str(car_run_update_handler))
-      #if new == "Run":
-      #  self.log("Car is running update handler.")
-      #  self.cancel_timer(longterm_update_handler)
-      #  car_run_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
-      #elif new == "Off":
-      #  self.log("Car is off update handler.")
-      #  self.cancel_timer(car_run_update_handler)
-      #  longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
+
 
   def on_battery_state_changed(self, entity, attribute, old, new, kwargs):
     if new == "STATUS_LOW" and old != "unavailable":
@@ -191,6 +185,7 @@ class Car(hass.Hass):
     self.call_service(globals.car_refresh) 
     self.log("Refresh pressed.")
 
+  # To do get the message processing into here.
   def on_message_count_change(self, entity, attribute, old, new, kwargs):
     current_message_count = self.get_state(globals.car_messages)
     self.log("Old message count: " + str(old))
@@ -215,12 +210,12 @@ class Car(hass.Hass):
         self.log("Home B departed.")
       if old == "home":
         self.log("Home L departed.")
-        GarageLibrary.close_garage_and_power_off
+        GarageLibrary.close_garage_and_power_off()
       if old == "PBM":
         self.log("PBM Location departed.")
       if new == "home":
         self.log("Home L arrived.")
-        GarageLibrary.switch_on_garage_door
+        GarageLibrary.switch_on_garage_door()
       elif new == "Home_B":
         self.log("Home B arrived.")
       elif new == "PBM":
@@ -229,14 +224,18 @@ class Car(hass.Hass):
       self.log("Current/Previous Location unavailable")
   
   def on_window_state_change(self, entity, attribute, old, new, kwargs):
-      self.log("Window state has changed: " + str(new))
-      if self.get_state(globals.car_alarm_status) == "SET":
-        if old == "open" and new == "closed":
+      alarm_status = self.get_state(globals.car_alarm_status)
+      if alarm_status == "SET":
+        self.log("Window state has changed: " + str(new))
+        if old == "Open" and new == "Closed":
           # To do: Change sensor to turn off builtin Home Assistant alerts.
           self.log("Windows closed.")
-        elif old == "closed" and new == "open":
+          self.enable_long_timer()
+        elif old == "Closed" and new == "Open":
           # To do: Change sensor to turn on builtin Home Assistant alerts.
           self.log("Windows opened.")
+          self.enable_short_timer()
+
 
 ###############################################################################################################
 # Other functions:
@@ -244,7 +243,23 @@ class Car(hass.Hass):
   def refresh_car_status(self, kwargs):
     self.log("Refresh car status.")
     self.call_service(globals.car_refresh)
-    self.log("Four hour handler id: " + str(longterm_update_handler))
-    self.log("Car run handler id: " + str(car_run_update_handler))
+    self.log("Four hour handler id: " + str(self.longterm_update_handler))
+    self.log("Five minute handler id: " + str(self.shortterm_update_handler))
     self.log("Ignition state: " + str(ignition_status))
+
+  def enable_short_timer(self):
+    self.log("Enabling Short Term Timer.")
+    if self.longterm_update_handler != 0:
+      self.log("Cancelling timer.")
+      self.cancel_timer(longterm_update_handler)
+    self.shortterm_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
+    self.longterm_update_handler = 0
+
+  def enable_long_timer(self):
+    self.log("Enabling Long Term Timer.")
+    if self.shortterm_update_handler != 0:
+      self.log("Cancelling timer.")
+      self.cancel_timer(shortterm_update_handler)
+    self.longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
+    self.shortterm_update_handler = 0
 
