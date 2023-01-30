@@ -16,7 +16,7 @@ import globals
 class Car(hass.Hass):
 
   def initialize(self):
-    self.log("=" * 30)
+    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
     
@@ -48,8 +48,8 @@ class Car(hass.Hass):
       self.log("Initial door lock status: " + lock_status)
 
     global window_status
+    window_status = self.get_state(globals.car_window_position, attribute="state")
     if window_status != "unavailable":
-      window_status = self.get_state(globals.car_window_position, attribute="state")
       self.log("Window status: " + str(window_status))
 
     global alarm_status
@@ -62,6 +62,7 @@ class Car(hass.Hass):
     self.log(battery_status)
     if battery_status == "STATUS_LOW":
       self.log("Car battery is low.")
+      self.enable_long_timer()
     
     #global current_message_count
     current_message_count = self.get_state(globals.car_messages)
@@ -71,13 +72,20 @@ class Car(hass.Hass):
       self.log("message_new: " + message_new)
       self.log ("Return message: " + return_message)
 
-
     # Get current car position
-    global car_current_position_longtitude
-    car_current_position_longtitude = self.get_state(globals.car_tracker, attribute="longtitude")
+    global car_current_position_longitude
+    car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
+    self.log("Longtitude: " + str(car_current_position_longitude))
     global car_current_position_latitude
     car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
-     
+    self.log("Latitude: " + str(car_current_position_latitude))
+    global car_position_current_zone
+    car_position_current_zone = self.get_state(globals.car_tracker)
+    self.log("Car postition current zone (if any): " + str(car_position_current_zone))
+    global car_position_last_change
+    car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+    self.log("Car position last change: " + str(car_position_last_change))
+    
     #if ignition_status == "Off" or alarm_status == "SET":
     if alarm_status == "SET" and window_status == "Closed":
       self.log("Run long term timer.")
@@ -151,19 +159,24 @@ class Car(hass.Hass):
       self.log("Ignition status has changed: " + ignition_status)
       lock_status = self.get_state(globals.car_lock)
       self.log("Lock status: " + lock_status)
-
+      # To do:
+      # Get and store current location.
+      # Compare current location to test if car is moving.
 
   def on_battery_state_changed(self, entity, attribute, old, new, kwargs):
     if new == "STATUS_LOW" and old != "unavailable":
       self.log("Car battery is low.")
+      ignition_status = self.get_state(globals.car_ignition_status)
+      if ignition_status == "Off":
+        self.enable_long_timer()
       self.call_service(globals.max_app, title = "Car battery is low.",\
                                          message = "TTS",\
                                          data = {"media_stream": "alarm_stream",\
                                                  "tts_text": "Car battery is low."})
 
   def on_button_refresh_status_pressed(self, entity, attribute, old, new, kwargs):
-    self.call_service(globals.car_refresh) 
     self.log("Refresh pressed.")
+    self.call_service(globals.car_refresh) 
 
   def on_message_count_change(self, entity, attribute, old, new, kwargs):
     current_message_count = self.get_state(globals.car_messages)
@@ -213,8 +226,10 @@ class Car(hass.Hass):
           # To do: Change sensor to turn on builtin Home Assistant alerts.
           self.log("Windows opened.")
           self.enable_short_timer()
-
-
+  
+  def run_update_car_status(self, kwargs):
+    self.get_car_status()
+    
 ###############################################################################################################
 # Other functions:
 ###############################################################################################################
@@ -223,21 +238,50 @@ class Car(hass.Hass):
     self.call_service(globals.car_refresh)
     self.log("Four hour handler id: " + str(self.longterm_update_handler))
     self.log("Five minute handler id: " + str(self.shortterm_update_handler))
-    self.log("Ignition state: " + str(ignition_status))
+    self.run_in(self.run_update_car_status, 30)
+
+  def get_car_status(self):
+    ignition_status = self.get_state(globals.car_ignition_status)
+    if ignition_status != "unavailable":
+      self.log("=" * 60)
+      self.log("Current car status:")
+      self.log("Ignition state: " + str(ignition_status))
+      lock_status = self.get_state(globals.car_lock)
+      self.log("Lock state: " + str(lock_status))
+      alarm_status = self.get_state(globals.car_alarm)
+      self.log("Alarm status: " + alarm_status)
+      window_status = self.get_state(globals.car_window_position, attribute="state")
+      self.log("Window status: " + str(window_status))
+      global door_status
+      door_status = self.get_state(globals.car_door_status, attribute="state")
+      self.log("Door status: " + str(door_status))
+      battery_status = self.get_state(globals.car_battery)
+      self.log("Battery status: " + str(battery_status))
+      car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
+      car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
+      self.log("Longitude: " + str(car_current_position_longitude) + " , Latitude: " + str(car_current_position_latitude))
+      car_position_current_zone = self.get_state(globals.car_tracker)
+      self.log("Car postition current zone (if any): " + str(car_position_current_zone))
+      car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+      self.log("Car position last change: " + str(car_position_last_change))
+    else:
+      self.log("Car data unavailable.")
+    self.log("=" * 60)
+    return alarm_status, window_status
 
   def enable_short_timer(self):
     self.log("Enabling Short Term Timer.")
     if self.longterm_update_handler != 0:
-      self.log("Cancelling timer.")
-      self.cancel_timer(longterm_update_handler)
+      self.log("Cancelling long timer.")
+      self.cancel_timer(self.longterm_update_handler)
     self.shortterm_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
     self.longterm_update_handler = 0
 
   def enable_long_timer(self):
     self.log("Enabling Long Term Timer.")
     if self.shortterm_update_handler != 0:
-      self.log("Cancelling timer.")
-      self.cancel_timer(shortterm_update_handler)
+      self.log("Cancelling short timer.")
+      self.cancel_timer(self.shortterm_update_handler)
     self.longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
     self.shortterm_update_handler = 0
 
