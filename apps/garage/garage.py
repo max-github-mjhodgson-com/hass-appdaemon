@@ -26,7 +26,7 @@ class Garage(hass.Hass):
   #  garage_open_air_gap
   
   def initialize(self):
-    self.log("=" * 30)
+    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
     
@@ -37,8 +37,8 @@ class Garage(hass.Hass):
     global garage_door_close_time_check
     garage_door_close_time_check = 30  # In seconds, how long the garage door should take to close.
 
-    global run_in_the_future_handler
-    run_in_the_future_handler = 0
+    #global run_in_the_future_handler
+    #run_in_the_future_handler = 0
     
     global garage_close_time_handler
     global garage_open_time_handler
