@@ -32,9 +32,13 @@ class Calendar(hass.Hass):
     global CarLibrary
     CarLibrary = self.get_app("car")
 
+    
     # Listen for events:
     self.listen_event(self.on_calendar_event, entity_id = globals.house_calendar)
-    #self.log(self.calendar_check_if_event_is_in_progress(globals.house_calendar, "Test Event 13"))
+
+
+    # Test event check.
+    ##self.log(self.calendar_check_if_event_is_in_progress(globals.house_calendar, "Test Event 13"))
 
 
   ###############################################################################################################

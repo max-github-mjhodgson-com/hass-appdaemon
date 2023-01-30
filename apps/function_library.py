@@ -40,8 +40,6 @@ class FunctionLibrary(hass.Hass):
     working_day_return_code = 0
     working_day="off"
 
-    self.log("here")
-    self.log(self.get_state(globals.vacation_calendars["max"]))
     # Check the person's calendar.
     if self.get_state(globals.vacation_calendars[person]) == "on":
       working_day_return_code = 1
@@ -55,9 +53,8 @@ class FunctionLibrary(hass.Hass):
     else:
       working_day_return_code = 0
       working_day="on"
-
-    friendly_name = self.get_state("person."+ person, attribute = "friendly_name")
-    self.set_state("sensor.non_working_day_"+person, state=working_day, attributes = {"friendly_name": "Non-working day for "+friendly_name, "detail": None})
+    friendly_name = self.get_state("person." + person, attribute = "friendly_name")
+    self.set_state("sensor.non_working_day_" + person, state=working_day, attributes = {"friendly_name": "Non-working day for "+ friendly_name, "detail": None})
     return working_day_return_code, working_day
 
   def is_the_traffic_to_work_heavy(self):
@@ -68,3 +65,7 @@ class FunctionLibrary(hass.Hass):
   def press_button(self, button):
     # To Do
     self.log("Button pressed.")
+
+  def i_am_alive(self):
+    self.log("I am alive.")
+    

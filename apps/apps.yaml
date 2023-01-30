@@ -7,13 +7,14 @@ global_modules:
 hello_world:
   module: hello
   class: HelloWorld
-  
 
 garage:
   module: garage
   class: Garage
-  global_dependencies: globals
-  dependencies: function_library
+  global_dependencies:
+    - globals
+  dependencies:
+    - function_library
 
 bot:
   module: telegram
@@ -33,8 +34,10 @@ function_library:
 kitchen:
   module: kitchen
   class: Kitchen
-  global_dependencies: globals
-  dependencies: function_library
+  global_dependencies:
+    - globals
+  dependencies: 
+    - function_library
 
 calendar:
   module: calendar
@@ -42,12 +45,12 @@ calendar:
   global_dependencies: 
     - globals
   dependencies:
-    - car
-    - doorphone
+    #- car
+    #- doorphone
     - function_library
     - garage
     - house_mode
-    - squeezebox_control
+    #- squeezebox_control
 
 max_automations:
   module: max
