@@ -1,8 +1,4 @@
 # Global Variables
-#
-# Max Hodgson 2023
-#
-# This requires a secrets.py, in the same variable definition format as this file.
 import secrets
 
 # Max
@@ -192,9 +188,13 @@ car_refresh_button = "input_button.refresh_ford_pass_status"
 car_tracker = secrets.max_car_tacker
 car_refresh = "fordpass/refresh_status"
 car_distance_to_empty = "sensor.fordpass_distance_to_empty"
+car_window_position = "sensor.fordpass_windowposition"
+car_door_status = "sensor.fordpass_doorstatus"
 
 # Zones
 pbm_zone = secrets.pbm_zone
 
 # Test
 imported_secret = secrets.test_secret + " Wombat"
+
+log_partition_line_length = 40
