@@ -9,4 +9,5 @@ doorphone:
     - globals
   dependencies:
     - asterisk_comms
+    - cctv
   
