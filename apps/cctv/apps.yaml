@@ -1,0 +1,11 @@
+---
+global_modules: globals
+
+cctv:
+  module: cctv
+  class: Cctv
+  global_dependencies: 
+    - globals
+  dependencies:
+    - function_library
+  
