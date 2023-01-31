@@ -27,7 +27,7 @@ class Doorphone(hass.Hass):
   
   # Doorphone for Card number.
   def initialize(self):
-    self.log("=" * 30)
+    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
     
@@ -63,8 +63,8 @@ class Doorphone(hass.Hass):
 
     #global last_ring 
     self.last_ring = datetime.now() - timedelta(seconds = 35)
-    global lovelace_cctv_tab
-    lovelace_cctv_tab = "/lovelace/10"
+    #global lovelace_cctv_tab
+    #lovelace_cctv_tab = "/lovelace/10"
     #self.take_picture("front_doorbell", "doorphone", "test")
     #CCTVLibrary.take_picture(camera_location = "front_doorbell", picture_type = "doorbell", picture_caption = "Test.")
     #self.run_in(CCTVLibrary.get_latest_camera_picture, 1, image_url = camera_image_url, image_filename = "/config/tmp/test.jpg")
@@ -152,7 +152,7 @@ class Doorphone(hass.Hass):
       if new != 501: # Dial in
         self.call_service(globals.notify_max_all, title = "Door Phone Alert (Button Pushed).",\
                                                   message = "Doorbell Button Pressed (API).",\
-                                                  data = {"clickAction":lovelace_cctv_tab,\
+                                                  data = {"clickAction":globals.lovelace_cctv_tab,\
                                                           "image":globals.frigate_current_frontdoor_pic_url})
         self.take_picture(camera_location = camera_location, picture_type = "doorbell", picture_caption = "Doorbell Button Pressed (API).")
         self.turn_on("input_boolean.doorbell_pressed")
@@ -183,7 +183,7 @@ class Doorphone(hass.Hass):
 
   def on_mqtt_message_received_event(self, eventname, data, *args):
   # http://192.168.101.5:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
-    self.log("MQTT New Version")
+    #self.log("MQTT New Version")
     true = 1
     false = 0
     null = "null"
@@ -192,7 +192,7 @@ class Doorphone(hass.Hass):
     payload = eval(data['payload'])
     #event_camera = data['topic']['before']['camera']
     #event_label = data['topic']['before']['label']
-    self.log("Payload: " + str(payload))
+    #self.log("Payload: " + str(payload))
     event_id_before = payload['before']['id']
     event_id_after = payload['after']['id']
     event_label_before = payload['before']['label']
@@ -214,7 +214,7 @@ class Doorphone(hass.Hass):
         self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
                                            message = "Person at Front Door",\
                                            data = {"channel":"Front_Door",\
-                                                    "clickAction":lovelace_cctv_tab ,\
+                                                    "clickAction":globals.lovelace_cctv_tab ,\
                                                     "image": picture_url_begin})
       if event_type == "end":
         self.log("Sending end image.")
@@ -243,18 +243,21 @@ class Doorphone(hass.Hass):
     self.take_picture(camera_location = camera_location, picture_type = "tamper", picture_caption = "Front Door Tamper Alarm.")
     self.call_service(globals.max_app, title = "Front Door Tamper Alarm!",\
                                        message = "Tamper Alarm Activated at Front (Click to view camera).",\
-                                       data = {"channel":"Front_Door","tag":"Tamper", "clickAction": lovelace_cctv_tab})
+                                       data = {"channel":"Front_Door","tag":"Tamper", "clickAction": globals.lovelace_cctv_tab})
 
   # Person detected on front camera (Frigate Sensor).
   def on_person_at_front_new(self, entity, attribute, old, new, kwargs):
     #snapshot_filename = globals.cctv_media_location+"/frontdoor/latest/frontdoor_person.jpg"
     self.log("Person at front (new).")
     #self.log(attribute)
-    self.call_service(globals.max_telegram, title = "Person at front (new)", message = "Person at Front (new).")
-    #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
-    self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
-                                       message = "Person Detected at Front (Click to view camera).",\
-                                       data = {"channel":"Front_Door", "tag":"Person", "clickAction": lovelace_cctv_tab })
+    if self.get_state(globals.front_doorbell_person_detection_switch) == "on":  # Switch off alerts if they get annoying.
+      self.call_service(globals.max_telegram, title = "Person at front (new)", message = "Person at Front (new).")
+      #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
+      self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
+                                         message = "Person Detected at Front (Click to view camera).",\
+                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": lovelace_cctv_tab })
+    else:
+      self.log("Person detection is switched off.")
 
   def on_person_at_front(self, entity, attribute, old, new, kwargs):  # Retired as Frigate does this now.
     self.log("Person at front. Old")
