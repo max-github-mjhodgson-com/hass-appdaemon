@@ -22,11 +22,18 @@ class House_Mode(hass.Hass):
 
     # Garage function library:
     global GarageLibrary
-    GarageLibrary = self.get_app("Garage")
+    GarageLibrary = self.get_app("garage")
 
     # Squeezebox Control Function Library:
     global SqueezeboxControl
     SqueezeboxControl = self.get_app("squeezebox_control")
+
+    global MaxAutomationsLibrary
+    MaxAutomationsLibrary = self.get_app("max_automations")
+
+    FunctionLibrary.i_am_alive()
+    return_code, work_day = FunctionLibrary.is_it_a_work_day_today("max")
+    self.log(str(return_code) + str(work_day))
 
     self.listen_state(self.everyone_is_out, "group.persons", new="not_home", duration = 20)
     self.listen_state(self.someone_just_arrived_home, "group.persons", new="home", duration = 30)
@@ -43,13 +50,16 @@ class House_Mode(hass.Hass):
   def everyone_is_out(self, entity, attribute, old, new, kwargs):
     self.log('The last person just left the house.')
     self.select_option(globals.house_mode_selector, "Just Left")
-    # Run everyone is out automations.
   
+    
   def someone_just_arrived_home(self, entity, attribute, old, new, kwargs):
     self.log('Someone just arrived home.: ' + entity)
     self.log(attribute)
     self.select_option(globals.house_mode_selector, "Just Arrived")
-    # Run specific person automations.
+    # Run any specific person automations.
+    # Find out who by iterating the persons group and getting the state of each memmber.
+    persons_at_home = self.get_state("group.persons", attribute = "entity")
+    
 
   def house_mode_just_left_timeout(self, entity, attribute, old, new, kwargs):
     self.log('House Mode Just Left has timed out, switching to Out.')
@@ -59,6 +69,7 @@ class House_Mode(hass.Hass):
     self.log('House Mode Just Arrived has timed out, switching to Home.')
     self.select_option(globals.house_mode_selector, "Home")
   
+  # Manuallly triggered pre-arrival.
   def execute_pre_arrival_automations(self, entity, attribute, old, new, kwargs):
     self.log("Pre-arrival automations.")
     #self.log("old value: " + old)
@@ -79,14 +90,13 @@ class House_Mode(hass.Hass):
     day_today = datetime.today().weekday() # Monday is 0 Tue:1 Wed:2 Thu:3 Fri:4 Sat:5 Sun:6
     work_day = self.get_state("binary_sensor.workday_l")
 
-    #max_vacation_test = self.get_state("calendar.max_hodgson_vacation")
-    #self.log("Vac Test:" + max_vacation_test)
-        
-    #self.call_service("switch/turn_on", entity_id = globals.kettle)
     working_day_return_code, working_day = FunctionLibrary.is_it_a_work_day_today('max')
-    if (working_day_return_code == 1 or working_day_return_code == 2) and self.now_is_between("09:00:00", "22:00:00"):
+    self.log(working_day_return_code)
+    self.log(working_day)
+    #if (working_day_return_code == 1 or working_day_return_code == 2) and self.now_is_between("09:00:00", "22:00:00"):
+    if working_day == "off" and self.now_is_between("09:00:00", "22:00:00"):
     #if (work_day == "off" or globals.vacation == "on" or "calendar.england_holidays" == "on") and self.now_is_between("09:00:00", "22:00:00"):
-      self.log("Work_day: " + str(work_day))
+      #self.log("Work_day: " + str(work_day))
       # SB Transporter (Only during the weekend.)
       #self.log("Power on Squeezebox Transporter.")
       SqueezeboxControl.power_on_squeezebox(globals.squeezebox_transporter_power)
@@ -97,7 +107,7 @@ class House_Mode(hass.Hass):
       if garage_door_state == "closed":
         self.call_service("switch/turn_on", entity_id = globals.garage_door_power_switch)
     
-    
+
   def execute_just_left_automations(self, entity, attribute, old, new, kwargs):
     """This will execute some automations when everybody has left the house."""
     self.log('Execute Just Left automations.')
@@ -116,6 +126,7 @@ class House_Mode(hass.Hass):
                                                  "actions":[globals.android_app_action_close_garage_door]})
     self.call_service("switch/turn_off", entity_id = globals.kettle)
     self.turn_on(globals.person_detection_switch)
+    MaxAutomationsLibrary.lock_laptop()
     #SqueezeboxControl.power_off_squeezebox(globals.squeezebox_transporter_power)
     #self.turn_on(entity,brightness=50,color_name="orange")
     self.select_option(globals.lounge_lamps_input_select, globals.dining_lamp)
