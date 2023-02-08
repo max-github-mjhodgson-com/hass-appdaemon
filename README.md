@@ -23,7 +23,8 @@ This controls the mode that the house is currently in. This is based on an input
 
 Home Assistant configuration.yaml for the House Mode "input_select":
 
-`input_select:
+```
+input_select:
   house_mode_l:
     name: House Mode
     options:
@@ -37,4 +38,4 @@ Home Assistant configuration.yaml for the House Mode "input_select":
       - Just Left
       - Pre-Departure
     initial: Home
-`
+```
