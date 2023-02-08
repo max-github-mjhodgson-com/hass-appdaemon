@@ -32,6 +32,10 @@ template:
         state: "{{ trigger.data.card }}"
 ```
 
+The configuration on the Grandstream looks like this:
+
+<img src="./GDS-Webhook-config.PNG"/>
+
 
 ## CCTV
 
