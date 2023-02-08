@@ -58,5 +58,4 @@ input_select:
       - Just Arrived
       - Just Left
       - Pre-Departure
-    initial: Home
 ```
