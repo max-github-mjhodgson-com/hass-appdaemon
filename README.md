@@ -9,7 +9,7 @@ App Descriptions:
 
 ## Doorphone
 
-This app interfaces with a Grandstream GDS3710 SIP Doorphone. Home Assistant receives events from the doorphone via webhooks, This creates a sensor, which can then be monitored. Each event passed from the doorphone carrys an identifier number, for example: 500 for doorbell or 900 for motion detected (using the internal motion detector). The Appdeamon app will action the events and grab pictures (from the camera), send messages, etc.
+This app interfaces with a Grandstream GDS3710 SIP Doorphone. Home Assistant receives events from the doorphone via webhooks, This creates a sensor, which can then be monitored. Each event passed from the doorphone carrys an identifier number, for example: 500 for doorbell or 900 for motion detected (using the internal motion detector). The Appdaemon app will action the events and grab pictures (from the camera), send messages, etc.
 
 Example configuration for webhook in Home Assistant configuration.yaml:
 
@@ -40,6 +40,8 @@ The configuration on the Grandstream looks like this:
 ## CCTV
 
 This listens to a Frigate installation via MQTT and decodes the data it revceives to be able to extract labels, event IDs, zones and objects.
+
+The app utilises an input_boolean in Home Assistant, which can turn off alerts for person detection. Useful for people working in the area of a camera and being flooded with alerts.
 
 
 ## House Mode
