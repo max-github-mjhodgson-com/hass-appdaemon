@@ -19,4 +19,22 @@ This listens to a Frigate installation via MQTT and decodes the data it revceive
 
 ## House Mode
 
-This controls the mode that the house is currently in. This is based on an input_select in Home Assistant, the modes are Home, Out (short a short time), Away (for a long time), Sleep, Pre-arrival, Scheduled arrival, Just Arrived, Just Left and Pre-departure. It will change modes when people enter or leave, or other modes timeout. It will also run automations based on the current mode.
+This controls the mode that the house is currently in. This is based on an input_select in Home Assistant, the modes are Home, Out (for a short time), Away (for a long time), Sleep, Pre-arrival, Scheduled arrival, Just Arrived, Just Left and Pre-departure. It will change modes when people enter or leave, or other modes timeout. It will also run automations based on the current mode.
+
+Home Assistant configuration.yaml for the House Mode "input_select":
+
+`input_select:
+  house_mode_l:
+    name: House Mode
+    options:
+      - Home
+      - Out
+      - Away
+      - Sleep
+      - Pre-Arrival
+      - Scheduled Arrival
+      - Just Arrived
+      - Just Left
+      - Pre-Departure
+    initial: Home
+`
