@@ -10,6 +10,9 @@ max_telegram = secrets.max_telegram
 max_app_note_9 = secrets.max_app_note_9
 notify_max_all = "notify/max_all"
 
+# Misc
+dark_sensor = "binary_sensor.dark"
+
 # Garage Specific
 garage_door_power_switch = "switch.teckin02"
 garage_light_entity = "light.garage_light"
@@ -37,6 +40,7 @@ reboot_start_time = "01:29:00"
 reboot_end_time = "01:35:00"
 frigate_hostname = secrets.frigate_hostname
 frigate_port = "5000"
+doorphone_reboot_time_sensor = "binary_sensor.doorphone_reboot_time"
 
 # RFID Cards:
 cards_garage_door = secrets.cards_garage_door
@@ -48,6 +52,8 @@ frontdoor_camera = "camera.front_doorbell"
 frigate_port = "5000"
 frigate_current_frontdoor_pic_url =  "http://" + secrets.frigate_hostname + ":" + frigate_port + "/api/front_doorbell/latest.jpg"
 #doorbell_pressed_picture = "/config/tmp/doorbell_pressed.jpg"
+front_doorbell_person_detection_switch = "input_boolean.person_detection_frontdoor"
+lovelace_cctv_tab = "/lovelace/10"
 
 # Squeezeboxes:
 squeezebox_dining = "media_player.dining_room"
@@ -174,6 +180,8 @@ house_calendar = secrets.house_calendar
 workday_sensor = "binary_sensor.workday_l"
 travel_time_to_pbm = secrets.travel_time_to_pbm
 travel_time_from_pbm = secrets.travel_time_from_pbm
+travel_time_to_work = secrets.travel_time_to_work
+travel_time_from_work = secrets.travel_time_from_work
 
 person_detection_switch = "input_boolean.person_detection_frontdoor"
 
@@ -190,6 +198,7 @@ car_refresh = "fordpass/refresh_status"
 car_distance_to_empty = "sensor.fordpass_distance_to_empty"
 car_window_position = "sensor.fordpass_windowposition"
 car_door_status = "sensor.fordpass_doorstatus"
+max_car_kit = secrets.max_car_kit
 
 # Zones
 pbm_zone = secrets.pbm_zone
