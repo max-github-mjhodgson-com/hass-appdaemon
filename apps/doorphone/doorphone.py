@@ -164,7 +164,8 @@ class Doorphone(hass.Hass):
     reboot_snapshot_filename = camera_image_path + "doorphone_bootup_picture.jpg"
     #self.call_service("python_script/set_state", entity_id = doorphone_event_type, state = "0")
     self.set_state(doorphone_event_type, state = '0')
-    if self.now_is_between("01:29:00", "01:35:00"):  # Nightly reboot, just send an email.
+    is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
+    if is_it_reboot_time == "on":
       self.log("Sending email.")
       #self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
     else:
@@ -175,8 +176,9 @@ class Doorphone(hass.Hass):
   # When doorphone drops off network:
   def on_doorphone_dropped_off_network(self, entity, attribute, old, new, kwargs):
     self.log("Doorphone no ping.")
-    if self.now_is_between(globals.reboot_start_time, globals.reboot_end_time):
-      self.log("Doorphone is within daily reboot period")
+    is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
+    if is_it_reboot_time == "on":
+      self.log("Doorphone is within daily reboot period.")
     else:
       self.log("Doorphone has stopped responding to pings.")
       self.call_service(globals.max_telegram, title = "Doorphone Ping Alert.", message = "Doorphone has dropped off the network.")
@@ -255,13 +257,13 @@ class Doorphone(hass.Hass):
       #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
       self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
                                          message = "Person Detected at Front (Click to view camera).",\
-                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": lovelace_cctv_tab })
+                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": globals.lovelace_cctv_tab })
     else:
       self.log("Person detection is switched off.")
 
   def on_person_at_front(self, entity, attribute, old, new, kwargs):  # Retired as Frigate does this now.
     self.log("Person at front. Old")
-    if self.get_state("input_boolean.person_detection_frontdoor") == "on":
+    if self.get_state(globals.front_doorbell_person_detection_switch) == "on":
       test_attribute = self.get_state(str(entity), attribute="matches")
       coord2 = test_attribute["person"][0]["box"][2]
       coord1 = test_attribute["person"][0]["box"][0]
@@ -277,7 +279,7 @@ class Doorphone(hass.Hass):
         self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
         self.call_service(globals.max_app, title = "Doorphone Alert (Old)",\
                                          message = "Person Detected at Front (Click to view camera).",\
-                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": lovelace_cctv_tab })
+                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": globals.lovelace_cctv_tab })
     else:
       self.log("Person detection is switched off.")
   
@@ -297,7 +299,8 @@ class Doorphone(hass.Hass):
     self.log(reboot_message)
     #self.call_service("python_script/set_state", entity_id = doorphone_event_type, state = "0")  # Retired.
     self.set_state(doorphone_event_type, state = '0')
-    if self.now_is_between("01:29:00", "01:35:00"):  # Nightly reboot, just send an email.
+    is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
+    if is_it_reboot_time == "on":  # Nightly reboot, just send an email.
       self.log("Nightly reboot, not sending notification.")
       #self.call_service("notify/email_max", title = reboot_title, message = reboot_message)  # Email in Home Assistant isn't currently working.
     else:
