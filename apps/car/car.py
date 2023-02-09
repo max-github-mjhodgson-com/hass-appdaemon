@@ -244,7 +244,7 @@ class Car(hass.Hass):
 ###############################################################################################################
   def refresh_car_status(self, kwargs):
     self.log("Refresh car status.")
-    #self.call_service(globals.car_refresh)
+    self.call_service(globals.car_refresh)
     self.log("Four hour handler id: " + str(self.longterm_update_handler))
     self.log("Five minute handler id: " + str(self.shortterm_update_handler))
     self.run_in(self.run_update_car_status, 30)
