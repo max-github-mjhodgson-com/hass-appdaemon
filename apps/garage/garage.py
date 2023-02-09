@@ -427,6 +427,7 @@ class Garage(hass.Hass):
     
   def check_if_garage_closed(self):
     door_state = self.get_state(globals.garage_door_entity)
+    self.log("Door state: " + str(door_state))
     return door_state
   
   def check_door_is_closed_and_try_to_reclose(self, kwargs):
