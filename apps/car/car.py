@@ -102,7 +102,7 @@ class Car(hass.Hass):
     self.listen_state(self.on_message_count_change, globals.car_messages)
     #, old = current_message_count)
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
-    self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status, new = "NOTSET", old = "SET")
+    self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status) #, new = "NOTSET", old = "SET")
     self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, duration = 30)
     self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position, attribute = "state")
 
@@ -132,25 +132,31 @@ class Car(hass.Hass):
       self.log("Car auto-locked.")
 
   def on_car_alarm_change(self, entity, attribute, old, new, kwargs):
-    if old == "SET":
-      self.log("Alarm Unset.")
-      if new == "NOTSET":
-        self.log("Car alarm is OFF.")
-        self.enable_short_timer()
+    self.log("Car alarm status change, new, old: " +str(new) + ", " + str(old))
+    window_status = self.get_state(globals.car_window_position, attribute="all")
+    self.log("Window status: " + str(window_status))
+    if old == "SET" and new == "NOTSET":
+      self.log("Car alarm is UNSET.")
+      self.enable_short_timer()
+      car_kit_connected = self.get_state("sensor.m00520_bluetooth_connection", attribute = "connected_paired_devices")
+      self.log("Car kit: " + str(car_kit_connected))
+      if globals.max_car_kit in car_kit_connected:
+        self.log("Car kit connected, not sending alert.")
+      else:
         #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
         self.call_service(globals.max_app, title = "Car alarm disarmed.",\
                                            message = "TTS",\
-                                          data = {"media_stream": "alarm_stream_max",\
-                                                  "tts_text": "Car alarm has been disarmed."})
-      elif new == "SET":
-        self.log("Car alarm is SET.")
-        # and windows are closed?
-        window_status = self.get_state(globals.car_window_position, attribute="all")
-        if window_status == "closed":
-          self.enable_long_timer()
-        elif window_status == "open":
-          self.log("Windows are still open.")
-          self.enable_short_timer()
+                                           data = {"media_stream": "alarm_stream_max",\
+                                                   "tts_text": "Car alarm has been disarmed."})
+    if new == "SET": # and old == "UNSET":
+       self.log("Car alarm is SET.")
+       # and windows are closed?
+       if window_status == "Closed":
+         self.log("Windows are closed.")
+         self.enable_long_timer()
+       elif window_status == "Open":
+         self.log("Windows are still open.")
+         self.enable_short_timer()
 
   def on_ignition_change(self, entity, attribute, old, new, kwargs):
     if old != "unavailable" or new != "unavailable":
@@ -159,6 +165,9 @@ class Car(hass.Hass):
       self.log("Ignition status has changed: " + ignition_status)
       lock_status = self.get_state(globals.car_lock)
       self.log("Lock status: " + lock_status)
+      if new == "RUN":
+        self.log("Car engine run.")
+        self.enable_short_timer()
       # To do:
       # Get and store current location.
       # Compare current location to test if car is moving.
@@ -235,7 +244,7 @@ class Car(hass.Hass):
 ###############################################################################################################
   def refresh_car_status(self, kwargs):
     self.log("Refresh car status.")
-    self.call_service(globals.car_refresh)
+    #self.call_service(globals.car_refresh)
     self.log("Four hour handler id: " + str(self.longterm_update_handler))
     self.log("Five minute handler id: " + str(self.shortterm_update_handler))
     self.run_in(self.run_update_car_status, 30)
