@@ -24,7 +24,7 @@ class Cctv(hass.Hass):
     FunctionLibrary = self.get_app("function_library")
 
     # State monitors:
-    person_detection_switch_handler = self.listen_state(self.switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
+    person_detection_switch_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
 
     # Event monitors:
     self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")
@@ -33,7 +33,7 @@ class Cctv(hass.Hass):
   # Callback functions:
 ###############################################################################################################
 
-  def switch_on_person_detection(self, entity, attribute, old, new, kwargs):
+  def on_switch_on_person_detection(self, entity, attribute, old, new, kwargs):
     self.log("Switch on person detection.")
     self.turn_on(globals.front_doorbell_person_detection_switch)
 
@@ -53,12 +53,19 @@ class Cctv(hass.Hass):
     event_id_after = payload['after']['id']
     event_label_before = payload['before']['label']
     event_label_after = payload['after']['label']
-    #event_entered_zones = payload['after']['entered_zones']
+    event_entered_zones_before = payload['before']['entered_zones']
+    event_number_of_entered_zones_before = len(event_entered_zones_before)
+    event_entered_zones_after = payload['after']['entered_zones']
     event_type = payload['type']
     self.log("Before ID: " + event_id_before)
     self.log("After ID: " + event_id_after)
     self.log("Event Type: " + event_type)
-    #self.log("Entered Zones" + str(event_entered_zones))
+    self.log("Object Type: " + str(event_label_after))
+    if event_number_of_entered_zones_before > 0 and event_type == "":
+      self.log("Entered Zones: " + str(event_entered_zones_before))
+      self.send_an_alert(zone = event_entered_zones_before, detected_object = event_label_after)
+    else:
+      self.log("No zones were entered.")
     #picture_url = "http://localhost:8123/api/frigate/notifications/"
     picture_url = "http://192.168.101.5:8123/api/frigate/notifications/"
     if event_label_before == "person":
@@ -111,4 +118,13 @@ class Cctv(hass.Hass):
     with open(image_filename, 'wb') as handler:
       handler.write(img_data)
 
-    
+def send_an_alert(self, kwargs):
+  if globals.front_doorbell_person_detection_switch == "on":
+    self.log("Sending an alert.")
+    #event = kwargs["event_id"]
+    zone = kwargs["zone"]
+    object = kwargs["detected_object"]
+    #self.log("Event ID: " +str(event))
+    self.log("Zone(s) entered: " + str(zone))
+    self.log("Object: " + str(object))
+
