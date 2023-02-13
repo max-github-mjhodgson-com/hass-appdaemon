@@ -7,6 +7,7 @@ Areas covered are Grandstream SIP Doorphone, CCTV, House Mode, Garage, Calendar,
 
 App Descriptions:
 
+
 ## Doorphone
 
 This app interfaces with a Grandstream GDS3710 SIP Doorphone. Home Assistant receives events from the doorphone via webhooks, This creates a sensor, which can then be monitored. Each event passed from the doorphone carrys an identifier number, for example: 500 for doorbell or 900 for motion detected (using the internal motion detector). The Appdaemon app will action the events and grab pictures (from the camera), send messages, etc.
@@ -69,7 +70,7 @@ input_select:
 
 ## Garage
 
-This allow control of the door and lights in the garage. The garage has an electric door, which is linked (at the moment) to a Raspberry Pi Zero, which controls the GPIO pins via MQTT. The pins control the door opening/closing button and also watch the state of a reed switch fixed to the door. The mains power to the door controller is controlled via mains switch for extra security. There is also controls the the lighting and a PIR sensor to watch for human activity in the garage. The door is set to close after a time completes, if it is left open. The timer will reset if the PIR sensor detects motion. The PIR sensor will also control the lights and will also alert if there is movement in the garage and the house mode shows that there is no one home. There are also controls to open or close the after specific time periods (such as close the door in 15 minutes).
+This allows control of the door and lights in the garage. The garage has an electric door, which is linked (at the moment) to a Raspberry Pi Zero, which controls the GPIO pins via MQTT. The pins control the door opening/closing button and also watch the state of a reed switch fixed to the door (to tell if the door is open or closed). The mains power to the door controller is controlled via mains switch for extra security. There is also controls for the lighting and a PIR sensor to watch for human activity in the garage. The door is set to close after a timer completes, if it is left open. The timer will reset if the PIR sensor detects motion. The PIR sensor will also control the lights and will also alert if there is movement in the garage and the house mode shows that there is no one home. There are also controls to open or close the after specific time periods (such as close the door in 15 minutes).
 
 
 ## Kitchen
