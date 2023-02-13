@@ -43,10 +43,6 @@ This listens to a Frigate installation via MQTT and decodes the data it revceive
 
 The app utilises an input_boolean in Home Assistant, which can turn off alerts for person detection. Useful for people working in the area of a camera and being flooded with alerts.
 
-## Mobile App Events
-
-This listens to events from the Home Assistant Mobile App. Mainly events like pressing a button on a notification. This will then execute the required response through a linked app, such as calling the garage app to close the garage door.
-
 ## House Mode
 
 This controls the mode that the house is currently in. This is based on an input_select in Home Assistant, the modes are Home, Out (for a short time), Away (for a long time), Sleep, Pre-Arrival, Scheduled arrival, Just Arrived, Just Left and Pre-Departure. It will change modes when people enter or leave, or other modes timeout. It will also run automations based on the current mode.
@@ -68,3 +64,13 @@ input_select:
       - Just Left
       - Pre-Departure
 ```
+
+## Kitchen
+
+This currently controls the kettle. It will watch the the power level to reach a certain threshold. This will then start a short timer (to switch the plug off) and send a Telegram message.
+
+
+## Mobile App Events
+
+This listens to events from the Home Assistant Mobile App. Mainly events like pressing a button on a notification. This will then execute the required response through a linked app, such as calling the garage app to close the garage door.
+
