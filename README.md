@@ -43,6 +43,7 @@ This listens to a Frigate installation via MQTT and decodes the data it revceive
 
 The app utilises an input_boolean in Home Assistant, which can turn off alerts for person detection. Useful for people working in the area of a camera and being flooded with alerts.
 
+
 ## House Mode
 
 This controls the mode that the house is currently in. This is based on an input_select in Home Assistant, the modes are Home, Out (for a short time), Away (for a long time), Sleep, Pre-Arrival, Scheduled arrival, Just Arrived, Just Left and Pre-Departure. It will change modes when people enter or leave, or other modes timeout. It will also run automations based on the current mode.
@@ -64,6 +65,12 @@ input_select:
       - Just Left
       - Pre-Departure
 ```
+
+
+## Garage
+
+This allow control of the door and lights in the garage. The garage has an electric door, which is linked (at the moment) to a Raspberry Pi Zero, which controls the GPIO pins via MQTT. The pins control the door opening/closing button and also watch the state of a reed switch fixed to the door. The mains power to the door controller is controlled via mains switch for extra security. There is also controls the the lighting and a PIR sensor to watch for human activity in the garage. The door is set to close after a time completes, if it is left open. The timer will reset if the PIR sensor detects motion. The PIR sensor will also control the lights and will also alert if there is movement in the garage and the house mode shows that there is no one home. There are also controls to open or close the after specific time periods (such as close the door in 15 minutes).
+
 
 ## Kitchen
 
