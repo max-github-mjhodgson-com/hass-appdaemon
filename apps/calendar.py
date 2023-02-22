@@ -1,6 +1,16 @@
 # Responds to Calendar Events.
 #
 # Max Hodgson 2023
+# Version: 14022023.01
+#
+# This can check whether specific named event is in progress.
+# This can also perform tasks based on calendar event.
+# Calendar events to perform tasks:
+#   garage door <open|close>
+#   garage power <on|off>
+#   house mode <out|away|pre-arrival>
+#   telegram message <message>
+# 
 
 import appdaemon.plugins.hass.hassapi as hass
 from datetime import datetime
@@ -9,7 +19,7 @@ import globals
 class Calendar(hass.Hass):
 
   def initialize(self):
-    self.log("=" * 30)
+    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
     
@@ -31,15 +41,14 @@ class Calendar(hass.Hass):
 
     global CarLibrary
     CarLibrary = self.get_app("car")
-
     
     # Listen for events:
     self.listen_event(self.on_calendar_event, entity_id = globals.house_calendar)
 
-
     # Test event check.
-    ##self.log(self.calendar_check_if_event_is_in_progress(globals.house_calendar, "Test Event 13"))
-
+    #self.log("Event test.")
+    #fred = self.calendar_check_if_event_is_in_progress(globals.house_calendar, "Test Event 13")
+    #self.log("Event: " + str(fred))
 
   ###############################################################################################################
   # Callback functions:
@@ -79,11 +88,16 @@ class Calendar(hass.Hass):
   def calendar_event_start(self, calendar_event_title):
       self.log("Calendar event started: " + calendar_event_title)
       calendar_event_title_split = calendar_event_title.split()
+      self.log("Calendar title: " + str(calendar_event_title_split))
       calendar_event_title_word_count = len(calendar_event_title_split)
       if calendar_event_title_split[0].lower() == "garage":
         if calendar_event_title_split[1].lower() =="door":
-          self.log("Garage open.")
-          GarageLibrary.power_on_and_open_garage
+          if calendar_event_title_split[2].lower() == "open":
+            self.log("Garage door open.")
+            GarageLibrary.power_on_and_open_garage
+          elif calendar_event_title_split[2].lower() == "close":
+            self.log("Garage door close.")
+            GarageLibrary.close_garage_and_power_off
         elif calendar_event_title_split[1].lower() =="power" and calendar_event_title_split[2].lower() =="on":
            self.log("Garage power on.")
            GarageLibrary.switch_on_garage_door
@@ -93,17 +107,18 @@ class Calendar(hass.Hass):
       elif calendar_event_title_split[0].lower() == "telegram" and calendar_event_title_split[1].lower() == "message":
         telegram_message = calendar_event_title_split[2:]
         self.log("Telegram message: " + " ".join(telegram_message))
-        self.call_service(globals.max_telegram, title = "Calendar Reminder", message = " ".join(telegram_message))
+        self.call_service(globals.max_telegram, title = "Calendar Reminder: ", message = " ".join(telegram_message))
       elif calendar_event_title_split[0].lower() == "ha" and calendar_event_title_split[1].lower() == "message":
         ha_message = calendar_event_title_split[2:]
         self.log("HA message: " + " ".join(ha_message))
-        self.call_service(globals.max_app, title = "Calendar Reminder", message = " ".join(ha_message))
-      elif calendar_event_title_split[0:1].lower() == "house mode":
-        self.log("House Mode.")
-        available_house_modes = ["Out", "Away", "Pre-arrival"]
-        house_mode = calendar_event_title_split[2]
-        if house_mode in available_house_modes:
-          self.select_option(globals.house_mode_selector, house_mode)
+        self.call_service(globals.max_app, title = "Calendar Reminder: ", message = " ".join(ha_message))
+      elif calendar_event_title_split[0].lower() == "house":
+        if calendar_event_title_split[1].lower() == "mode":
+          self.log("House Mode.")
+          available_house_modes = ["Out", "Away", "Pre-arrival"]
+          house_mode = calendar_event_title_split[2]
+          if house_mode in available_house_modes:
+            self.select_option(globals.house_mode_selector, house_mode)
 
 
   def calendar_event_end(self, calendar_event_title):
@@ -121,10 +136,12 @@ class Calendar(hass.Hass):
   # Check if event is in progress.
   # Usage:
   #   self.log(self.calendar_check_if_event_is_in_progress(globals.house_calendar, "Test Event 13"))
-  # Returns "yes" or "no"
+  # Returns "on" or "off"
   def calendar_check_if_event_is_in_progress(self, calendar_name, calendar_event_title):
-    event_in_progress = self.get_state(calendar_name, attribute = "message")
-    if event_in_progress.lower() == calendar_event_title.lower():
-      return "on"
-    else:
-      return "off"
+    return_code = "off"
+    calendar_status = self.get_state(calendar_name)
+    if calendar_status == "on":
+      event_in_progress = self.get_state(calendar_name, attribute = "message")
+      if event_in_progress.lower() == calendar_event_title.lower():
+        return "on"
+    return return_code
