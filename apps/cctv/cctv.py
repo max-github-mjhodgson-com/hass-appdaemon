@@ -1,6 +1,9 @@
 # CCTV App
 # Max Hodgson 2023
-
+# Version: 14022023.01
+#
+# Requires: Frigate, MQTT
+#
 import appdaemon.plugins.hass.hassapi as hass
 import time, requests
 from datetime import timedelta
@@ -24,6 +27,7 @@ class Cctv(hass.Hass):
     FunctionLibrary = self.get_app("function_library")
 
     # State monitors:
+    # Switch person detection back on after a hour.
     person_detection_switch_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
 
     # Event monitors:
@@ -34,7 +38,7 @@ class Cctv(hass.Hass):
 ###############################################################################################################
 
   def on_switch_on_person_detection(self, entity, attribute, old, new, kwargs):
-    self.log("Switch on person detection.")
+    self.log("Switch back on person detection.")
     self.turn_on(globals.front_doorbell_person_detection_switch)
 
   def on_mqtt_message_received_event(self, eventname, data, *args):
@@ -70,7 +74,7 @@ class Cctv(hass.Hass):
     picture_url = "http://192.168.101.5:8123/api/frigate/notifications/"
     if event_label_before == "person":
       if event_type == "new":
-        self.log("Sending start image.(New Version)")
+        self.log("Sending start image.(New Version, via telegram.)")
         picture_url_begin = picture_url + event_id_before + "/snapshot.jpg"
         self.log("Image URL: " + picture_url_begin)
         self.call_service("telegram_bot/send_photo", url = picture_url_begin, caption = "Person at front (New Version).")
@@ -80,7 +84,7 @@ class Cctv(hass.Hass):
                                                     "clickAction":globals.lovelace_cctv_tab ,\
                                                     "image": picture_url_begin})
       if event_type == "end":
-        self.log("Sending end image.")
+        self.log("Sending end image (via telegram).")
         picture_url_end = picture_url + event_id_after + "/snapshot.jpg"
         video_url = video_base_url + event_id_after + "/clip.mp4"
         # Todo: Store a latest picture in the media directory. 
