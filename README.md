@@ -70,7 +70,12 @@ input_select:
 
 ## Garage
 
-This allows control of the door and lights in the garage. The garage has an electric door, which is linked (at the moment) to a Raspberry Pi Zero, which controls the GPIO pins via MQTT. The pins control the door opening/closing button and also watch the state of a reed switch fixed to the door (to tell if the door is open or closed). The mains power to the door controller is controlled via mains switch for extra security. There is also controls for the lighting and a PIR sensor to watch for human activity in the garage. The door is set to close after a timer completes, if it is left open. The timer will reset if the PIR sensor detects motion. The PIR sensor will also control the lights and will also alert if there is movement in the garage and the house mode shows that there is no one home. There are also controls to open or close the after specific time periods (such as close the door in 15 minutes).
+This allows control of the door and lights in the garage. The garage has an electric door, which is linked (at the moment) to a Raspberry Pi Zero, which controls the GPIO pins via MQTT. The pins control the door opening/closing button and also watch the state of a reed switch fixed to the door (to tell if the door is open or closed). Power to the door controller is controlled via mains switch for extra security. There is also controls for the lighting and a PIR sensor to watch for human activity in the garage. The door is set to close after a timer completes, if it is left open. The timer will reset if the PIR sensor detects motion. The PIR sensor will also control the lights and will also alert if there is movement in the garage and the house mode shows that there is no one home. There are also controls to open or close the after specific time periods (such as close the door in 15 minutes).
+
+
+## Calendar
+
+Calendar works with the relatively new builtin Home Assistnat calendar. It can watch for specific events such as House Mode, Garage open or close, Garage power on or off or a Telegram reminder message. These can be used activate events at specific time, like if you have have someone coming to do some work and you are out. So I could for example open the garage door at 9 am on a Monday and close it an hour later. The app can also query the calendar to see if a specific event is in progress.
 
 
 ## Kitchen
@@ -85,5 +90,5 @@ This listens to events from the Home Assistant Mobile App. Mainly events like pr
 
 ## Car
 
-This watches for data passed from the Ford Pass integration. It can create alerts based on alarm status, fuel level, battery status, etc, activate automations based on the car's location, change the montoring period to/from  5 minutes (when the car is in use, or there are security events) and 4 hours (for when the car is not in use).
+This watches for data passed from the Ford Pass integration. It can create alerts based on alarm status, fuel level, battery status, etc. It can also activate automations based on the car's location e.g. If the car is entering the home zone, switch on the garage door power. It also can change the montoring period to/from 5 minutes (when the car is in use, or there are security events) and 4 hours (for when the car is not in use and to reduce load on the battery). There is also a counter to keep a log of refresh events as Ford limits call to the API to 20,000 requests a month (and will disable accounts that exceed this).
 
