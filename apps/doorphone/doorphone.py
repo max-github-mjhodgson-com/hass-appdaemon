@@ -87,7 +87,7 @@ class Doorphone(hass.Hass):
     
     # Event monitors:
     self.motion_timer_finished_handler = self.listen_event(self.on_motion_undetected, "timer.finished", entity_id = globals.frontdoor_motion_timer)
-    self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")
+    #self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")  # Migrated to CCTV App.
     # Test: self.listen_for_reset_doorbell_pressed = self.listen_event(self.reset_doorbell_pressed_flag, "reset_doorbell_pressed_flag", oneshot=True)
     # Test: self.porch_light_timer_finished_handler = self.listen_event(self.on_porch_light_timer_finished, "timer.finished", entity_id = globals.porch_light_timer, oneshot=True, old_brightness = 30)
 
@@ -249,15 +249,21 @@ class Doorphone(hass.Hass):
 
   # Person detected on front camera (Frigate Sensor).
   def on_person_at_front_new(self, entity, attribute, old, new, kwargs):
-    #snapshot_filename = globals.cctv_media_location+"/frontdoor/latest/frontdoor_person.jpg"
-    self.log("Person at front (new).")
-    #self.log(attribute)
+    self.log("Person at front (Doorphone new).")
+    event_picture = self.get_state("camera.front_doorbell_person", attribute = "entity_picture")
+    self.log("HA URL: " + str(globals.home_assistant_url))
+    event_picture_url = globals.home_assistant_url + event_picture
+    self.log("Event Picture: " + event_picture_url)
     if self.get_state(globals.front_doorbell_person_detection_switch) == "on":  # Switch off alerts if they get annoying.
+      self.log("Doorphone person at front new, sending message.")
       self.call_service(globals.max_telegram, title = "Person at front (new)", message = "Person at Front (new).")
       #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
       self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
                                          message = "Person Detected at Front (Click to view camera).",\
-                                         data = {"channel":"Front_Door", "tag":"Person", "clickAction": globals.lovelace_cctv_tab })
+                                         data = {"channel":"Front_Door",\
+                                                 "tag":"Person",\
+                                                 "image":event_picture_url,\
+                                                 "clickAction": globals.lovelace_cctv_tab })
     else:
       self.log("Person detection is switched off.")
 
