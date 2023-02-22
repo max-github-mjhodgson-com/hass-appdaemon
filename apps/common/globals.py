@@ -4,6 +4,9 @@ import secrets
 # Max
 person_max = secrets.person_max
 
+# Main URL
+home_assistant_url = "https://" + secrets.home_assistant_hostname
+
 # Notifications
 max_app = secrets.max_app
 max_telegram = secrets.max_telegram
@@ -199,6 +202,11 @@ car_distance_to_empty = "sensor.fordpass_distance_to_empty"
 car_window_position = "sensor.fordpass_windowposition"
 car_door_status = "sensor.fordpass_doorstatus"
 max_car_kit = secrets.max_car_kit
+fordpass_refresh_counter = "counter.ford_pass_refresh"
+fordpass_refresh_disable = "input_boolean.fordpass_refresh_disable"
+fordpass_refresh_status = "input_select.fordpass_car_refresh_interval_timer"
+
+max_phone_bluetooth = secrets.max_phone_bluetooth
 
 # Zones
 pbm_zone = secrets.pbm_zone
