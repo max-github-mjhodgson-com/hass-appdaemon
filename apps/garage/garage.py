@@ -1,6 +1,6 @@
 # Garage Control Script.
-# Max Hodgson 2021
-# Version: 02092021.01
+# Max Hodgson 2023
+# Version: 14022023.01
 
 import appdaemon.plugins.hass.hassapi as hass
 import time
@@ -380,11 +380,11 @@ class Garage(hass.Hass):
 
   def close_garage(self):
     self.log("Garage Door CLOSE function called.")
-    self.call_service("cover/close_cover", entity_id = globals.garage_door_entity)
+    self.call_service("cover/close_cover", entity_id = globals.garage_door_entity, return_result = False)
 
   def open_garage(self):
     self.log("Garage Door OPEN function called.")
-    self.call_service("cover/open_cover", entity_id = globals.garage_door_entity)
+    self.call_service("cover/open_cover", entity_id = globals.garage_door_entity, return_result = False)
 
   def garage_light_off(self):
     self.log("Garage Light OFF function called.")
