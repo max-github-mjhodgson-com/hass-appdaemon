@@ -14,9 +14,9 @@
 
 import appdaemon.plugins.hass.hassapi as hass
 from datetime import datetime
-import globals
+import globals_module as globals
 
-class Calendar(hass.Hass):
+class Calendar_Automations(hass.Hass):
 
   def initialize(self):
     self.log("=" * globals.log_partition_line_length)
