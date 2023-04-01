@@ -5,7 +5,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import time
 from datetime import datetime
-import globals
+import globals_module as globals
 
 class Garage(hass.Hass):
 
@@ -66,8 +66,8 @@ class Garage(hass.Hass):
     self.handle2 = self.listen_state(self.on_garage_door_closed, globals.garage_door_entity, new = "closed", old = "open")
     self.handle5 = self.listen_state(self.on_garage_door_power_off, globals.garage_door_power_switch, new = "off", old = "on")
     self.handle6 = self.listen_state(self.on_garage_door_power_on, globals.garage_door_power_switch, new = "on", old = "off")
-    self.listen_state(self.on_motion_detected, globals.garage_motion_sensor, old = "off")
-    self.listen_state(self.on_motion_not_detected, globals.garage_motion_sensor, new = "off") 
+    self.listen_state(self.on_motion_detected, globals.garage_motion_sensor, new = "on", old = "off")
+    self.listen_state(self.on_motion_not_detected, globals.garage_motion_sensor, new = "off", old = "on") 
     self.garage_light_on_handler = self.listen_state(self.on_garage_light_on, globals.garage_light_entity, new = "on", old = "off")
     self.garage_light_off_handler = self.listen_state(self.on_garage_light_off, globals.garage_light_entity, new = "off", old = "on")
     self.door_auto_close_timer_handler = self.listen_state(self.auto_close_timer_events, "timer.garage_door_auto_close_no_motion")
