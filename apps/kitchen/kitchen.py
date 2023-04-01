@@ -9,7 +9,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import time
 from datetime import datetime
-import globals
+import globals_module as globals
 
 class Kitchen(hass.Hass):
 
@@ -37,7 +37,7 @@ class Kitchen(hass.Hass):
     # Event monitors.
     self.kettle_power_timer_started = self.listen_event(self.on_kettle_timer_start, "timer.started", entity_id = globals.kettle_timer )
     self.kettle_power_timer_finished_handler = self.listen_event(self.on_kettle_timer_finished, "timer.finished", entity_id = globals.kettle_timer )
-    self.listen_for_kettle_on_button_press_handler = self.listen_state(self.on_button_press_turn_kettle_on, 'input_button.kettle_on')
+    self.listen_for_kettle_on_button_press_handler = self.listen_state(self.on_button_press_turn_kettle_on, "input_button.kettle_on")
 
 ###############################################################################################################
 # Callback functions:
@@ -85,6 +85,10 @@ class Kitchen(hass.Hass):
     self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "1")
     if self.kettle_message_sent == 0:
       self.call_service(globals.max_telegram, title = "Kettle Alert", message = "The kettle has boiled.")
+      self.call_service(globals.max_app, title = "Kettle has boiled.",\
+                                       message = "TTS",\
+                                       data = {"media_stream": "alarm_stream",\
+                                               "tts_text": "Kettle has boiled."})
       self.kettle_message_sent = 1
     #if kettle_gone_to_zero_handler != 0:
     #  self.cancel_listen_state(kettle_gone_to_zero_handler)
