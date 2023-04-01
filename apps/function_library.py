@@ -4,7 +4,7 @@
 # Max Hodgson 2023
 #
 import appdaemon.plugins.hass.hassapi as hass
-import globals
+import globals_module as globals
 
 from datetime import datetime
 
@@ -24,7 +24,9 @@ class FunctionLibrary(hass.Hass):
       return 2
       
   def is_car_at_home(self):
-    if globals.car_tracker == "home" or globals.car_tracker == "home_b":
+    where_is_car = self.get_state(globals.car_tracker)
+    #self.log(where_is_car)
+    if where_is_car == "Home" or where_is_car == "Home_b":
       return 0
     else:
       return 1
@@ -69,3 +71,6 @@ class FunctionLibrary(hass.Hass):
   def i_am_alive(self):
     self.log("I am alive.")
     
+  def turn_off_alert(self, alert_entity_id):
+    self.log("Turn off alert: " + str(alert_entity_id))
+    self.call_service("alert/turn_off", alert_entity_id)
