@@ -1,59 +1,155 @@
 ---
-global_modules: 
-  - globals
-  - secrets
+#global_modules: 
+#  - globals_module
+#  - secrets_module
 
+secrets_module:
+  module: secrets_module
+  class: Secrets
+  global: true
 
-hello_world:
-  module: hello
-  class: HelloWorld
-
-garage:
-  module: garage
-  class: Garage
-  global_dependencies:
-    - globals
+globals_module:
+  module: globals_module
+  class: Globals
+  global: true
+  #global_dependencies:
+  #  - secrets_module
   dependencies:
+    - secrets_module
+
+function_library:
+  module: function_library  
+  class: FunctionLibrary
+  dependencies:
+    - globals_module
+  priority: 10
+##################################################################################################################################
+asterisk_comms:
+  module: asterisk_comms
+  class: AsteriskComms
+
+auto_lights:
+  module: auto_lights  
+  class: Auto_Lights
+  dependencies:
+    - globals_module
     - function_library
+  christmas_time: input_boolean.christmas_time
+  #constrain_input_select: input_select.house_mode_l,Out,Away
 
 bot:
   module: telegram
   class: TelegramBot
-  global_dependencies: globals
   dependencies: 
+    - globals_module
+    #- secrets_module
     - garage
     - function_library
     - auto_lights
     - house_mode
     - squeezebox_control
 
-function_library:
-  module: function_library  
-  class: FunctionLibrary
+buttons:
+  module: buttons  
+  class: Buttons
 
-kitchen:
-  module: kitchen
-  class: Kitchen
-  global_dependencies:
-    - globals
-  dependencies: 
-    - function_library
-
-calendar:
-  module: calendar
-  class: Calendar
-  global_dependencies: 
-    - globals
+calendar_automations:
+  module: calendar_automations
+  class: Calendar_Automations
   dependencies:
+    - globals_module
     #- car
     #- doorphone
     - function_library
     - garage
     - house_mode
     #- squeezebox_control
+  priority: 60
+
+car:
+  module: car  
+  class: Car
+  dependencies:
+    - globals_module
+    - garage
+  #  - asterisk_comms
+  
+cctv:
+  module: cctv
+  class: Cctv
+  dependencies:
+    - globals_module
+    - function_library
+
+doorphone:
+  module: doorphone
+  class: Doorphone
+  event_type_sensor:  sensor.doorphone_event_type
+  dependencies: 
+    - globals_module
+    #- asterisk_comms
+    - cctv
+
+garage:
+  module: garage
+  class: Garage
+  dependencies:
+    - globals_module
+    - function_library
+  
+hello_world:
+  module: hello
+  class: HelloWorld
+  #global_dependencies:
+  #  - globals_module
+  #  - secrets_module
+  dependencies:
+    - globals_module
+    - secrets_module
+
+house_mode:
+  module: house_mode
+  class: House_Mode  
+  dependencies:
+    - globals_module
+    - squeezebox_control
+
+internet_down:
+  module: internet_down  
+  class: Internet_Down
+
+kitchen:
+  module: kitchen
+  class: Kitchen
+  dependencies: 
+    - function_library
+    - globals_module
+
+mobile_app:
+  module: mobile_app
+  class: Mobile_App
+  dependencies:
+   - globals_module
+   - garage
 
 max_automations:
   module: max
   class: Max
-  global_dependencies: globals
-  dependencies: function_library
+  dependencies:
+    - globals_module
+    - function_library
+
+misc_automations:
+  module: misc_automations
+  class: MiscAutomations   
+  dependencies:
+    - function_library
+    - globals_module
+
+nfc_tags:
+  module: nfc_tags
+  class: NFC_Tags
+
+squeezebox_control:
+  module: squeezebox_control
+  class: SqueezeboxControl
