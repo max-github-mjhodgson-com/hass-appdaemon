@@ -9,7 +9,7 @@ import appdaemon.plugins.hass.hassapi as hass
 import time, requests
 from datetime import timedelta
 from datetime import datetime
-import globals
+import globals_module as globals
 
 
 class Doorphone(hass.Hass):
@@ -69,19 +69,19 @@ class Doorphone(hass.Hass):
     #CCTVLibrary.take_picture(camera_location = "front_doorbell", picture_type = "doorbell", picture_caption = "Test.")
     #self.run_in(CCTVLibrary.get_latest_camera_picture, 1, image_url = camera_image_url, image_filename = "/config/tmp/test.jpg")
     #CCTVLibrary.get_latest_camera_picture( image_url = camera_image_url, image_filename = "/config/tmp/test.jpg")
+    #self.run_in(CCTVLibrary.get_latest_camera_picture, 10, image_url = camera_image_url, image_filename = "/config/media/cctv/fred.jpg")
+    
+    #self.take_reboot_picture("Message", "/config/media/cctv/fred.jpg", camera_image_url)
 
     # State monitors
     new_event = self.listen_state(self.on_event_detected, doorphone_event_type, old = "0")
     card_used = self.listen_state(self.on_doorphone_card_used, doorphone_event_type, new = "600")
     system_up = self.listen_state(self.on_doorphone_system_up, doorphone_event_type, new = "1101")
     
-    doorbell_button_handler01 = self.listen_state(self.on_doorphone_doorbell_button_pressed, doorphone_event_type, new = "500")
-    doorbell_button_handler02 = self.listen_state(self.on_doorphone_doorbell_button_pressed, doorphone_event_type, new = "501")
-    doorbell_button_handler03 = self.listen_state(self.on_doorphone_doorbell_button_pressed, doorphone_event_type, new = "504")
-    doorbell_button_handler04 = self.listen_state(self.on_doorphone_doorbell_button_pressed, doorphone_event_type, new = "502")
+    doorbell_button_handler04 = self.listen_state(self.on_doorphone_doorbell_button_pressed, doorphone_event_type, new = ["500", "501", "502", "504"], old = lambda x: x not in ["unknown", "unavailable"])
     doorbell_button_handler05 = self.listen_state(self.on_doorphone_tamper, doorphone_event_type, new = "1100")
     # Disabled 12Jan23 person_at_front = self.listen_state(self.on_person_at_front, "image_processing.doods_front_door", old = "0")
-    person_at_front_frigate = self.listen_state(self.on_person_at_front_new, "binary_sensor.front_doorbell_person_motion", new = "on")
+    person_at_front_frigate = self.listen_state(self.on_person_at_front_new, globals.front_doorbell_person_sensor, new = "on")
     doorphone_poe_power_handler = self.listen_state(self.on_doorphone_power_off, globals.doorphone_power_poe_injector, new = "off", duration = 10)
     doorphone_ping_sensor_handler = self.listen_state(self.on_doorphone_dropped_off_network, "binary_sensor.door_phone", new = "off", duration = 10)
     
@@ -165,13 +165,14 @@ class Doorphone(hass.Hass):
     #self.call_service("python_script/set_state", entity_id = doorphone_event_type, state = "0")
     self.set_state(doorphone_event_type, state = '0')
     is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
+    self.log("Reboot time sensor: " + str(is_it_reboot_time))
     if is_it_reboot_time == "on":
       self.log("Sending email.")
-      #self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
+      self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
     else:
       #self.run_in(self.get_latest_camera_picture, 10, image_url = camera_image_url, image_filename = reboot_snapshot_filename)
-      self.run_in(CCTVLibrary.get_latest_camera_picture, 10, image_url = camera_image_url, image_filename = reboot_snapshot_filename)
-      self.run_in(self.take_reboot_picture, 20, doorphone_up_message = doorphone_up_message, reboot_snapshot_filename = reboot_snapshot_filename)
+      self.run_in(CCTVLibrary.get_latest_camera_picture, 10, camera_image_url, reboot_snapshot_filename)
+      self.run_in(self.take_reboot_picture, 20, doorphone_up_message = doorphone_up_message, reboot_snapshot_filename = reboot_snapshot_filename, image_url = camera_image_url)
   
   # When doorphone drops off network:
   def on_doorphone_dropped_off_network(self, entity, attribute, old, new, kwargs):
@@ -308,7 +309,7 @@ class Doorphone(hass.Hass):
     is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
     if is_it_reboot_time == "on":  # Nightly reboot, just send an email.
       self.log("Nightly reboot, not sending notification.")
-      #self.call_service("notify/email_max", title = reboot_title, message = reboot_message)  # Email in Home Assistant isn't currently working.
+      self.call_service("notify/email_max", title = reboot_title, message = reboot_message)
     else:
       self.call_service(globals.notify_max_all, title = reboot_title, message = reboot_message)
 
@@ -322,11 +323,13 @@ class Doorphone(hass.Hass):
     self.log("Doorbell Pressed Reset Flag.")
     self.turn_off("input_boolean.doorbell_pressed")
 
-  def take_reboot_picture(self, kwargs):
-    doorphone_up_message = kwargs["doorphone_up_message"]
-    reboot_snapshot_filename = kwargs["reboot_snapshot_filename"]
-    CCTVLibrary.get_latest_camera_picture( image_url = camera_image_url, image_filename = reboot_snapshot_filename)
-    #self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
+  def take_reboot_picture(self, doorphone_up_message, reboot_snapshot_filename, frigate_image_url_path):
+    #doorphone_up_message = kwargs["doorphone_up_message"]
+    #reboot_snapshot_filename = kwargs["reboot_snapshot_filename"]
+    #camera_image_url = kwargs["image_url_path"]
+    self.log(frigate_image_url_path)
+    CCTVLibrary.get_latest_camera_picture(image_url = frigate_image_url_path, image_filename = reboot_snapshot_filename)
+    self.call_service("notify/email_max", title = "Door Phone Alert (Door Phone Up).", message = doorphone_up_message)
     self.call_service("telegram_bot/send_photo", file = reboot_snapshot_filename, caption = doorphone_up_message)
 
   def disable_alert(self, kwargs):
