@@ -6,7 +6,8 @@ import time
 from datetime import timedelta
 from datetime import datetime
 from datetime import date
-import globals
+
+import globals_module as globals
 
 # Fordpass message formats:
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
@@ -105,9 +106,9 @@ class Car(hass.Hass):
     #, old = current_message_count)
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
     self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status) #, new = "NOTSET", old = "SET")
-    self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, duration = 30)
+    self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, old = lambda x: x not in ["unknown", "unavailable"], duration = 30)
     self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position, attribute = "state")
-    self.listen_state(self.on_refresh_status_off, globals.fordpass_refresh_status, new = "Off", duration = 10)
+    self.listen_state(self.on_refresh_status_off, globals.fordpass_refresh_status, new = "Off", old = lambda x: x not in ["unknown", "unavailable"], duration = 10)
 
     # Reset counter:
     reset_counter_handler = self.run_daily(self.on_is_it_the_first_of_the_month, "00:01:00")
