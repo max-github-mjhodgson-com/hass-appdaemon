@@ -9,7 +9,7 @@
 import appdaemon.plugins.hass.hassapi as hass
 import time
 from datetime import datetime
-import globals
+import globals_module as globals
 
 class Mobile_App(hass.Hass):
 
@@ -65,9 +65,3 @@ class Mobile_App(hass.Hass):
 ###############################################################################################################
 # Other functions:
 ###############################################################################################################
-
-  #def close_garage(self):
-  #  self.log("Garage Door CLOSE function called.")
-  #  self.call_service("cover/close_cover", entity_id = globals.garage_door_entity)
-
-  

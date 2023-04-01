@@ -1,9 +1,0 @@
----
-global_modules: globals
-
-mobile_app:
-  module: mobile_app
-  class: Mobile_App
-  global_dependencies: globals
-  dependencies: garage
-  
