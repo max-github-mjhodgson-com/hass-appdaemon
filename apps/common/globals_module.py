@@ -1,8 +1,18 @@
 # Global Variables
-import secrets
+# Imports secrets.
+import appdaemon.plugins.hass.hassapi as hass
+
+import secrets_module as secrets
+
+bob = secrets.bob
+wibble = 60
+mavis = secrets.mavis
+
 
 # Max
 person_max = secrets.person_max
+
+log_partition_line_length = 40
 
 # Main URL
 home_assistant_url = "https://" + secrets.home_assistant_hostname
@@ -44,6 +54,7 @@ reboot_end_time = "01:35:00"
 frigate_hostname = secrets.frigate_hostname
 frigate_port = "5000"
 doorphone_reboot_time_sensor = "binary_sensor.doorphone_reboot_time"
+front_doorbell_person_sensor = "binary_sensor.front_doorbell_person_occupancy"
 
 # RFID Cards:
 cards_garage_door = secrets.cards_garage_door
@@ -214,4 +225,15 @@ pbm_zone = secrets.pbm_zone
 # Test
 imported_secret = secrets.test_secret + " Wombat"
 
-log_partition_line_length = 40
+weather = "weather.accuweather"
+has_it_rained_today_switch = "input_boolean.has_it_been_raining"
+
+
+class Globals(hass.Hass):
+    def initialize(self):
+        self.log("Globals")
+        secrets_app = self.get_app("secrets")
+        self.log(secrets.bob)
+        
+        #self.log("Mavis: " + mavis)
+
