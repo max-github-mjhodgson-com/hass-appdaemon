@@ -1,6 +1,6 @@
 # CCTV App
 # Max Hodgson 2023
-# Version: 14022023.01
+# Version: 14022023.02
 #
 # Requires: Frigate, MQTT
 #
@@ -8,7 +8,7 @@ import appdaemon.plugins.hass.hassapi as hass
 import time, requests
 from datetime import timedelta
 from datetime import datetime
-import globals
+import globals_module as globals
 
 class Cctv(hass.Hass):
 
@@ -28,21 +28,21 @@ class Cctv(hass.Hass):
 
     # State monitors:
     # Switch person detection back on after a hour.
-    person_detection_switch_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
+    person_detection_switch_on_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
 
     # Event monitors:
     self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")
-  
+
 ###############################################################################################################
   # Callback functions:
 ###############################################################################################################
 
   def on_switch_on_person_detection(self, entity, attribute, old, new, kwargs):
-    self.log("Switch back on person detection.")
+    self.log("Switch back on person detection after timeout.")
     self.turn_on(globals.front_doorbell_person_detection_switch)
 
   def on_mqtt_message_received_event(self, eventname, data, *args):
-  # http://192.168.101.5:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
+  # http://<URL>:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
     self.log("MQTT New Version")
     true = 1
     false = 0
@@ -65,31 +65,33 @@ class Cctv(hass.Hass):
     self.log("After ID: " + event_id_after)
     self.log("Event Type: " + event_type)
     self.log("Object Type: " + str(event_label_after))
-    if event_number_of_entered_zones_before > 0 and event_type == "":
+    if event_number_of_entered_zones_before > 0 and event_type != "":
       self.log("Entered Zones: " + str(event_entered_zones_before))
       self.send_an_alert(zone = event_entered_zones_before, detected_object = event_label_after)
     else:
       self.log("No zones were entered.")
     #picture_url = "http://localhost:8123/api/frigate/notifications/"
-    picture_url = "http://192.168.101.5:8123/api/frigate/notifications/"
+    picture_url = "http://" + globals.home_assistant_url + ":8123/api/frigate/notifications/"
     if event_label_before == "person":
       if event_type == "new":
         self.log("Sending start image.(New Version, via telegram.)")
         picture_url_begin = picture_url + event_id_before + "/snapshot.jpg"
         self.log("Image URL: " + picture_url_begin)
-        self.call_service("telegram_bot/send_photo", url = picture_url_begin, caption = "Person at front (New Version).")
-        self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
-                                           message = "Person at Front Door",\
-                                           data = {"channel":"Front_Door",\
-                                                    "clickAction":globals.lovelace_cctv_tab ,\
-                                                    "image": picture_url_begin})
+        if self.get_state(globals.front_doorbell_person_detection_switch) == "on":
+          self.call_service("telegram_bot/send_photo", url = picture_url_begin, caption = "Person at front (New Version).")
+          self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
+                                             message = "Person at Front Door",\
+                                             data = {"channel":"Front_Door",\
+                                                     "clickAction":globals.lovelace_cctv_tab ,\
+                                                     "image": picture_url_begin})
       if event_type == "end":
         self.log("Sending end image (via telegram).")
         picture_url_end = picture_url + event_id_after + "/snapshot.jpg"
         video_url = video_base_url + event_id_after + "/clip.mp4"
         # Todo: Store a latest picture in the media directory. 
-        self.call_service("telegram_bot/send_photo", disable_notification = "yes", url = picture_url_end, caption = video_url)
-        #self.call_service("telegram_bot/send_video", disable_notification = "yes", timeout = "yes", url = video_url, caption = "Person at front (video clip).")
+        if self.get_state(globals.front_doorbell_person_detection_switch) == "on":
+          self.call_service("telegram_bot/send_photo", disable_notification = "yes", url = picture_url_end, caption = video_url)
+          #self.call_service("telegram_bot/send_video", disable_notification = "yes", timeout = "yes", url = video_url, caption = "Person at front (video clip).")
     # + event_camera + event_label)
     #event_type = data['topic']['after']['type']
     #self.log(event_type)
@@ -112,23 +114,23 @@ class Cctv(hass.Hass):
     self.get_latest_camera_picture(image_url = frigate_camera_url + camera_id + "/latest.jpg", image_filename = snapshot_filename)
     return timed_snapshot_filename, snapshot_filename
 
-  def get_latest_camera_picture(self, kwargs):
-    #self.log("Get latest camera picture.")
+  def get_latest_camera_picture(self, image_url, image_filename):
+    self.log("Get latest camera picture.")
     #self.log("kwargs:")
     #self.log(kwargs)
-    image_url = kwargs["image_url"]
-    image_filename = kwargs["image_filename"]
+    #image_url_path = kwargs["image_url"]
+    #image_filename = kwargs["image_filename"]
     img_data = requests.get(image_url).content
     with open(image_filename, 'wb') as handler:
       handler.write(img_data)
 
-def send_an_alert(self, kwargs):
-  if globals.front_doorbell_person_detection_switch == "on":
-    self.log("Sending an alert.")
-    #event = kwargs["event_id"]
-    zone = kwargs["zone"]
-    object = kwargs["detected_object"]
-    #self.log("Event ID: " +str(event))
-    self.log("Zone(s) entered: " + str(zone))
-    self.log("Object: " + str(object))
+  def send_an_alert(self, **kwargs):
+    if self.get_state(globals.front_doorbell_person_detection_switch) == "on":
+      self.log("Sending an alert.")
+      #event = kwargs["event_id"]
+      zone = kwargs["zone"]
+      object = kwargs["detected_object"]
+      #self.log("Event ID: " +str(event))
+      self.log("Zone(s) entered: " + str(zone))
+      self.log("Detected object: " + str(object))
 
