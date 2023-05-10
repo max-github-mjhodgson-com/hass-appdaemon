@@ -1,13 +1,18 @@
-# Car Fordpass Control Script
+# Car Fordpass Control App
+#
+# Version: 10052023.01
 # Max Hodgson 2023
 
 import appdaemon.plugins.hass.hassapi as hass
+
+import os
 import time
-from datetime import timedelta
-from datetime import datetime
-from datetime import date
 
 import globals_module as globals
+
+#from datetime import timedelta
+from datetime import date, datetime
+
 
 # Fordpass message formats:
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
@@ -18,16 +23,20 @@ import globals_module as globals
 class Car(hass.Hass):
 
   def initialize(self):
-    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
-    self.log("running at {}.".format(now))
-    
+    this_script = os.path.basename(__file__)
+    self.log("=" * globals.log_partition_line_length)
+    self.log(this_script + " running at {}.".format(now))
+    self.log("=" * globals.log_partition_line_length)
+
+    # Load external apps:    
     global FunctionLibrary  
     FunctionLibrary = self.get_app("function_library")
 
     global GarageLibrary
     GarageLibrary = self.get_app("garage")
     
+    # Setup some global variables.
     global longterm_update_handler
     self.longterm_update_handler = 0
     global shortterm_update_handler
@@ -106,9 +115,12 @@ class Car(hass.Hass):
     #, old = current_message_count)
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
     self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status) #, new = "NOTSET", old = "SET")
-    self.car_tracker_zone_change_handler = self.listen_state(self.on_zone_change, globals.car_tracker, old = lambda x: x not in ["unknown", "unavailable"], duration = 30)
+
+    self.car_tracker_entity = self.get_entity(globals.car_tracker)
+    self.car_tracker_zone_change_handler = self.car_tracker_entity.listen_state(self.on_zone_change, duration = 30)
+    
     self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position, attribute = "state")
-    self.listen_state(self.on_refresh_status_off, globals.fordpass_refresh_status, new = "Off", old = lambda x: x not in ["unknown", "unavailable"], duration = 10)
+    self.listen_state(self.on_refresh_status_change, globals.fordpass_refresh_status, new = "Off") #, old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
 
     # Reset counter:
     reset_counter_handler = self.run_daily(self.on_is_it_the_first_of_the_month, "00:01:00")
@@ -206,6 +218,8 @@ class Car(hass.Hass):
         current_message_count = self.get_state(globals.car_messages)
         securialert_status, message_new, return_message = self.get_fordpass_messages(current_message_count)
         self.log("securialert_status: " + securialert_status)  # To do: Raise a noticable notification
+        if securialert_status == "on":
+          self.log("Security alert: " + str(return_message))
         self.log("message_new: " + message_new) # To do: Raise a notification if message is newer than x hours.
         self.log ("Return message: " + return_message)
         self.log("Current number of messages: " + current_message_count)
@@ -214,15 +228,15 @@ class Car(hass.Hass):
 
   def on_zone_change(self, entity, attribute, old, new, kwargs):
     if old != "unavailable" or new != "unavailable":
-      self.log("Zone changed: " + new)
+      self.log("Zone changed: (New): " + new + "(Old): " + old)
       if old == "Home_b":
         self.log("Home B departed.")
-      if old == "home":
+      if old == "Home":
         self.log("Home L departed.")
         GarageLibrary.close_garage_and_power_off()
       if old == "PBM":
         self.log("PBM Location departed.")
-      if new == "home":
+      if new == "Home":
         self.log("Home L arrived.")
         GarageLibrary.switch_on_garage_door()
       elif new == "Home_B":
@@ -259,7 +273,7 @@ class Car(hass.Hass):
       self.call_service("counter/reset", entity_id = globals.fordpass_refresh_counter)
       self.turn_off(globals.fordpass_refresh_disable)
 
-  def on_refresh_status_off(self, entity, attribute, old, new, kwargs):
+  def on_refresh_status_change(self, entity, attribute, old, new, kwargs):
     self.log("Refresh status switched off.")
     self.log("Four hour handler id: " + str(self.longterm_update_handler))
     self.log("Five minute handler id: " + str(self.shortterm_update_handler))
@@ -269,7 +283,12 @@ class Car(hass.Hass):
     elif self.shortterm_update_handler != 0:
       self.log("Short term handler is active.")
       cancel_handler = self.shortterm_update_handler
-    self.cancel_listen_state(self, cancel_handler)
+    self.log("Handler: " + str(cancel_handler))
+    self.cancel_listen_state(cancel_handler)
+
+  def on_tyre_pressure_low(self, entity, attribute, old, new, cb_args):
+    self.log("Car tyre pressure low.")
+    #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
     
 ###############################################################################################################
 # Other functions:
@@ -287,6 +306,7 @@ class Car(hass.Hass):
 
   def get_car_status(self):
     ignition_status = self.get_state(globals.car_ignition_status)
+    alarm_status=""
     if ignition_status != "unavailable":
       self.log("=" * 60)
       self.log("Current car status:")
