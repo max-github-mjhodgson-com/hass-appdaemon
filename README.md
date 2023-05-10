@@ -75,7 +75,7 @@ This allows control of the door and lights in the garage. The garage has an elec
 
 ## Calendar
 
-Calendar works with the relatively new builtin Home Assistnat calendar. It can watch for specific events such as House Mode, Garage open or close, Garage power on or off or a Telegram reminder message. These can be used activate events at specific time, like if you have have someone coming to do some work and you are out. So I could for example open the garage door at 9 am on a Monday and close it an hour later. The app can also query the calendar to see if a specific event is in progress.
+Calendar works with the relatively new builtin Home Assistant calendar. It can watch for specific events such as House Mode, Garage open or close, Garage power on or off or a Telegram reminder message. These can be used activate events at specific time, like if you have someone coming to do some work and you are out. So I could for example open the garage door at 9 am on a Monday and close it an hour later. The app can also query the calendar to see if a specific event is in progress.
 
 
 ## Kitchen
@@ -90,5 +90,5 @@ This listens to events from the Home Assistant Mobile App. Mainly events like pr
 
 ## Car
 
-This watches for data passed from the Ford Pass integration. It can create alerts based on alarm status, fuel level, battery status, etc. It can also activate automations based on the car's location e.g. If the car is entering the home zone, switch on the garage door power. It also can change the montoring period to/from 5 minutes (when the car is in use, or there are security events) and 4 hours (for when the car is not in use and to reduce load on the battery). There is also a counter to keep a log of refresh events as Ford limits call to the API to 20,000 requests a month (and will disable accounts that exceed this).
+This watches for data passed from the Ford Pass integration. It can create alerts based on alarm status, fuel level, battery status, etc. It can also activate automations based on the car's location e.g. If the car is entering the home zone, switch on the garage door power. It also can change the montoring period to/from 5 minutes (when the car is in use, or there are security events) and 4 hours (for when the car is not in use and to reduce load on the battery). There is also a counter to keep a log of refresh events as Ford limits calls to the API to 20,000 requests a month (and will disable accounts that exceed this).
 
