@@ -1,11 +1,16 @@
-# Garage Control Script.
+# Garage Control App
+#
 # Max Hodgson 2023
-# Version: 14022023.01
+# Version: 10052023.01
+#
 
 import appdaemon.plugins.hass.hassapi as hass
+import os
 import time
-from datetime import datetime
+
 import globals_module as globals
+
+from datetime import datetime
 
 class Garage(hass.Hass):
 
@@ -26,9 +31,11 @@ class Garage(hass.Hass):
   #  garage_open_air_gap
   
   def initialize(self):
-    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
-    self.log("running at {}.".format(now))
+    this_script = os.path.basename(__file__)
+    self.log("=" * globals.log_partition_line_length)
+    self.log(this_script + " running at {}.".format(now))
+    self.log("=" * globals.log_partition_line_length)
     
     # Load external AppDaemon libraries:
     global FunctionLibrary  
@@ -66,8 +73,10 @@ class Garage(hass.Hass):
     self.handle2 = self.listen_state(self.on_garage_door_closed, globals.garage_door_entity, new = "closed", old = "open")
     self.handle5 = self.listen_state(self.on_garage_door_power_off, globals.garage_door_power_switch, new = "off", old = "on")
     self.handle6 = self.listen_state(self.on_garage_door_power_on, globals.garage_door_power_switch, new = "on", old = "off")
-    self.listen_state(self.on_motion_detected, globals.garage_motion_sensor, new = "on", old = "off")
-    self.listen_state(self.on_motion_not_detected, globals.garage_motion_sensor, new = "off", old = "on") 
+    self.garage_motion_sensor_entity = self.get_entity(globals.garage_motion_sensor)
+    self.garage_motion_sensor_entity.listen_state(self.on_motion_detected)
+    self.garage_motion_sensor_entity.listen_state(self.on_motion_detected, new = "on", old = "off")
+    self.garage_motion_sensor_entity.listen_state(self.on_motion_not_detected, new = "off", old = "on") 
     self.garage_light_on_handler = self.listen_state(self.on_garage_light_on, globals.garage_light_entity, new = "on", old = "off")
     self.garage_light_off_handler = self.listen_state(self.on_garage_light_off, globals.garage_light_entity, new = "off", old = "on")
     self.door_auto_close_timer_handler = self.listen_state(self.auto_close_timer_events, "timer.garage_door_auto_close_no_motion")
@@ -211,13 +220,15 @@ class Garage(hass.Hass):
   # Long term timer timeout, close the garage door.
   def on_garage_door_no_motion_timer_finished(self, event, data, kwargs):
     self.log("Garage Door No-Motion Longterm Timer Finished.")
-    door_power_state = self.get_state(globals.garage_door_power_switch)
-    if door_power_state == 'off':
-      self.log("garage.py: Close garage door, power is off, switching ON.")
-      self.turn_on(globals.garage_door_power_switch)
-    self.log("garage.py: Closing door, after longterm timer.")
-    self.run_in(self.close_garage_and_power_off, 3)
-    self.run_in(self.check_door_is_closed_and_try_to_reclose, 60)
+    door_open_closed_state = self.get_state(globals.garage_door_entity)
+    if door_open_closed_state != "closed":
+      door_power_state = self.get_state(globals.garage_door_power_switch)
+      if door_power_state == 'off':
+        self.log("garage.py: Close garage door, power is off, switching ON.")
+        self.turn_on(globals.garage_door_power_switch)
+      self.log("garage.py: Closing door, after longterm timer.")
+      self.run_in(self.on_close_garage_and_power_off, 3)
+      self.run_in(self.check_door_is_closed_and_try_to_reclose, 60)
 
   # Input select close time.
   def on_close_time_select(self, entity, attribute, old, new, kwargs):
@@ -336,7 +347,7 @@ class Garage(hass.Hass):
     self.power_on_and_open_garage()
   
   def on_button_close_garage_and_power_off(self, entity, attribute, old, new, kwargs):
-    self.on_close_garage_and_power_off()
+    self.close_garage_and_power_off()
 
   def on_open_air_gap(self, event_name, data, kwargs):
     self.open_air_gap()
