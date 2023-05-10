@@ -1,7 +1,11 @@
+# Function Library
+#
+# Version: 10052023.01
+# Max Hodgson 2023
+#
 # Provides some global functions.
 # These can be called from the other apps.
 #
-# Max Hodgson 2023
 #
 import appdaemon.plugins.hass.hassapi as hass
 import globals_module as globals
@@ -55,8 +59,10 @@ class FunctionLibrary(hass.Hass):
     else:
       working_day_return_code = 0
       working_day="on"
-    friendly_name = self.get_state("person." + person, attribute = "friendly_name")
-    self.set_state("sensor.non_working_day_" + person, state=working_day, attributes = {"friendly_name": "Non-working day for "+ friendly_name, "detail": None})
+    friendly_name = self.get_state("person." + str(person), attribute = "friendly_name")
+    self.log("Friendly name: " + str(friendly_name))
+    self.log("Person: " + str(person))
+    self.set_state("sensor.working_day_" + str(person), state=working_day, attributes = {"friendly_name": "Working day for "+ str(friendly_name), "detail": None})
     return working_day_return_code, working_day
 
   def is_the_traffic_to_work_heavy(self):
