@@ -1,21 +1,16 @@
 # Global Variables
 # Imports secrets.
 import appdaemon.plugins.hass.hassapi as hass
-
 import secrets_module as secrets
-
-bob = secrets.bob
-wibble = 60
-mavis = secrets.mavis
-
 
 # Max
 person_max = secrets.person_max
+max_phone_tracker = secrets.max_phone_tracker
 
 log_partition_line_length = 40
 
 # Main URL
-home_assistant_url = "https://" + secrets.home_assistant_hostname
+home_assistant_url = secrets.home_assistant_hostname
 
 # Notifications
 max_app = secrets.max_app
@@ -53,8 +48,10 @@ reboot_start_time = "01:29:00"
 reboot_end_time = "01:35:00"
 frigate_hostname = secrets.frigate_hostname
 frigate_port = "5000"
+frigate_external_hostname = secrets.frigate_external_hostname
 doorphone_reboot_time_sensor = "binary_sensor.doorphone_reboot_time"
 front_doorbell_person_sensor = "binary_sensor.front_doorbell_person_occupancy"
+doorphone_ping = "binary_sensor.door_phone_ping"
 
 # RFID Cards:
 cards_garage_door = secrets.cards_garage_door
@@ -68,6 +65,7 @@ frigate_current_frontdoor_pic_url =  "http://" + secrets.frigate_hostname + ":" 
 #doorbell_pressed_picture = "/config/tmp/doorbell_pressed.jpg"
 front_doorbell_person_detection_switch = "input_boolean.person_detection_frontdoor"
 lovelace_cctv_tab = "/lovelace/10"
+front_motion_detection_off_input_number = "input_number.turn_off_person_detection_front_door_for"
 
 # Squeezeboxes:
 squeezebox_dining = "media_player.dining_room"
@@ -196,6 +194,7 @@ travel_time_to_pbm = secrets.travel_time_to_pbm
 travel_time_from_pbm = secrets.travel_time_from_pbm
 travel_time_to_work = secrets.travel_time_to_work
 travel_time_from_work = secrets.travel_time_from_work
+work_carpark_zone = secrets.work_carpark_zone
 
 person_detection_switch = "input_boolean.person_detection_frontdoor"
 
@@ -207,7 +206,7 @@ car_messages = "sensor.fordpass_messages"
 car_ignition_status = "sensor.fordpass_ignitionstatus"
 car_alarm_status = "sensor.fordpass_alarm"
 car_refresh_button = "input_button.refresh_ford_pass_status"
-car_tracker = secrets.max_car_tacker
+car_tracker = secrets.car_tracker
 car_refresh = "fordpass/refresh_status"
 car_distance_to_empty = "sensor.fordpass_distance_to_empty"
 car_window_position = "sensor.fordpass_windowposition"
@@ -216,24 +215,23 @@ max_car_kit = secrets.max_car_kit
 fordpass_refresh_counter = "counter.ford_pass_refresh"
 fordpass_refresh_disable = "input_boolean.fordpass_refresh_disable"
 fordpass_refresh_status = "input_select.fordpass_car_refresh_interval_timer"
+fordpass_tyre_pressure_front_right = "sensor.fordpass_tyre_pressure_front_right"
+fordpass_tyre_pressure_front_left = "sensor.fordpass_tyre_pressure_front_left"
+fordpass_tyre_pressure_rear_right = "sensor.fordpass_tyre_pressure_rear_right"
+fordpass_tyre_pressure_rear_left = "sensor.fordpass_tyre_pressure_rear_left"
+fordpass_tyre_pressure_front_recommended = 2.4
+fordpass_tyre_pressure_rear_recommended = 2.4
 
 max_phone_bluetooth = secrets.max_phone_bluetooth
 
 # Zones
 pbm_zone = secrets.pbm_zone
 
-# Test
-imported_secret = secrets.test_secret + " Wombat"
-
 weather = "weather.accuweather"
 has_it_rained_today_switch = "input_boolean.has_it_been_raining"
-
 
 class Globals(hass.Hass):
     def initialize(self):
         self.log("Globals")
         secrets_app = self.get_app("secrets")
-        self.log(secrets.bob)
-        
-        #self.log("Mavis: " + mavis)
-
+        self.log("Globals initialised.")
