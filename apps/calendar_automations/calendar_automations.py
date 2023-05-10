@@ -13,15 +13,21 @@
 # 
 
 import appdaemon.plugins.hass.hassapi as hass
-from datetime import datetime
+
+import os
+
 import globals_module as globals
+
+from datetime import datetime
 
 class Calendar_Automations(hass.Hass):
 
   def initialize(self):
-    self.log("=" * globals.log_partition_line_length)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
-    self.log("running at {}.".format(now))
+    this_script = os.path.basename(__file__)
+    self.log("=" * globals.log_partition_line_length)
+    self.log(this_script + " running at {}.".format(now))
+    self.log("=" * globals.log_partition_line_length)
     
     # Load external apps:
     global FunctionLibrary
