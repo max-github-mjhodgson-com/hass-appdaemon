@@ -1,20 +1,31 @@
+# House Mode App.
+#
+# Max Hodgson 2023
+# Version: 10052023.01
+#
 # Controls the mode that the house is in.
 # 
 # Needs an input_select configured in Home Assistant.
 #
-# Max Hodgson 2023
-import appdaemon.plugins.hass.hassapi as hass
-import globals
-import time, datetime
-from datetime import datetime
 
+import appdaemon.plugins.hass.hassapi as hass
+
+import datetime
+import time
+import os
+
+import globals_module as globals
+
+from datetime import datetime
 
 class House_Mode(hass.Hass):
 
   def initialize(self):
-    self.log("=" * 30)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
-    self.log("running at {}.".format(now))
+    this_script = os.path.basename(__file__)
+    self.log("=" * globals.log_partition_line_length)
+    self.log(this_script + " running at {}.".format(now))
+    self.log("=" * globals.log_partition_line_length)
 
     # General function library:
     global FunctionLibrary
@@ -31,25 +42,63 @@ class House_Mode(hass.Hass):
     global MaxAutomationsLibrary
     MaxAutomationsLibrary = self.get_app("max_automations")
 
-    #FunctionLibrary.i_am_alive()
+    #self.change_house_mode(house_mode = "home")
+    
+
+    current_house_mode = self.get_state(globals.house_mode_selector)
+    self.log("Current house mode: " + str(current_house_mode))
+    if current_house_mode == "Just Arrived":
+      self.log("Changing house mode to home.")
+      self.select_option(globals.house_mode_selector, "Home")
+    elif current_house_mode == "Just Left":
+      self.log("Changing house mode to out.")
+      self.select_option(globals.house_mode_selector, "Out")
+
+    global people_at_home
+    people_at_home = []
+    self.get_people_at_home()
+    self.log("People at home: " + str(people_at_home))
+    if people_at_home == []:
+      self.log("Nobody is at home.")
+      self.select_option(globals.house_mode_selector, "Out")
+    else:
+      self.log("Someone is at home.")
+      self.select_option(globals.house_mode_selector, "Home")
+    #  self.log("Max is at home.")
+    #  MaxAutomationsLibrary.run_arrival_automations_for_max()
+
+    #self.log(self.entities.group.persons.attributes.entity_id)
+
     #return_code, work_day = FunctionLibrary.is_it_a_work_day_today("max")
     #self.log(str(return_code) + str(work_day))
     #self.log(globals.remote_control['pioneer_amp']['power_off'])
 
     # States:
-    self.listen_state(self.on_everyone_is_out, "group.persons", new="not_home", duration = 20)
-    self.listen_state(self.on_someone_just_arrived_home, "group.persons", new="home", duration = 30)
-    self.listen_state(self.on_house_mode_just_left_timeout, globals.house_mode_selector, new="Just Left", duration = 30)
-    self.listen_state(self.on_house_mode_just_arrived_timeout, globals.house_mode_selector, new="Just Arrived", duration = 30)
-    self.listen_state(self.on_execute_just_arrived_automations, globals.house_mode_selector, new="Just Arrived", old = "Out", duration = 10)
-    self.listen_state(self.on_execute_just_left_automations, globals.house_mode_selector, new = "Just Left", old = "Home", duration = 10)
-    self.listen_state(self.on_execute_pre_arrival_automations, globals.house_mode_selector, new = "Pre-Arrival", duration = 10)
-    self.listen_state(self.on_house_mode_pre_departure_selected, globals.house_mode_selector, new = "Pre-Departure", duration = 10)
-    self.listen_state(self.on_house_mode_change, globals.house_mode_selector)
+    self.group_persons_entity = self.get_entity("group.persons")
+    self.group_persons_entity.listen_state(self.on_everyone_is_out, new = "not_home", duration = 20)
+    self.group_persons_entity.listen_state(self.on_someone_just_arrived_home, new = "home", duration = 20)
+    self.house_mode_selector_entity = self.get_entity(globals.house_mode_selector)
+    self.house_mode_selector_entity.listen_state(self.on_house_mode_just_left_timeout, new = "Just Left", old = "Home", duration = 30)
+    self.house_mode_selector_entity.listen_state(self.on_house_mode_just_arrived_timeout, new = "Just Arrived", old = ["Out", "Away"], duration = 30)
+    self.house_mode_selector_entity.listen_state(self.on_execute_just_arrived_automations, new = "Just Arrived", old = "Out", duration = 10)
+    self.house_mode_selector_entity.listen_state(self.on_execute_just_left_automations, new = "Just Left", old = "Home", duration = 10)
+    self.house_mode_selector_entity.listen_state(self.on_execute_pre_arrival_automations, new = "Pre-Arrival", old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
+    self.house_mode_selector_entity.listen_state(self.on_house_mode_pre_departure_selected, new = "Pre-Departure", old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
+    self.house_mode_selector_entity.listen_state(self.on_house_mode_change)
+    people = self.get_state("group.persons", attribute = "entity_id")
+    list_of_people = []
+    for person in people:
+      self.log(person)
+      list_of_people.append(person)
+      self.person_entity = self.get_entity(person)
+      self.person_entity.listen_state(self.on_who_has_left_or_entered, duration = 10)
+    #self.log(list_of_people)
+    #self.listen_state(self.on_who_has_left_or_entered, list_of_people, duration = 10)
 
     # Events:
     self.listen_event(self.on_pre_departure_event, "pre_departure_activated")
     self.listen_state(self.on_button_press_pre_departure, 'input_button.pre_departure')
+
 ###############################################################################################################
 # Callback functions:
 ############################################################################################################### 
@@ -61,9 +110,15 @@ class House_Mode(hass.Hass):
     self.log('Someone just arrived home.: ' + entity)
     self.log(attribute)
     self.select_option(globals.house_mode_selector, "Just Arrived")
+    
     # Run any specific person automations.
-    # Find out who by iterating the persons group and getting the state of each memmber.
-    persons_at_home = self.get_state("group.persons", attribute = "entity")
+    self.get_people_at_home()
+    self.log("People at home: " + str(people_at_home))
+    if globals.person_max in people_at_home:
+      self.log("Max is at home, run auytomations.")
+      MaxAutomationsLibrary.run_arrival_automations_for_max()
+      self.log("Post Max automations run.")
+    self.run_in(self.change_house_mode, 10, house_mode = "Home")
 
   def on_house_mode_just_left_timeout(self, entity, attribute, old, new, kwargs):
     self.log('House Mode Just Left has timed out, switching to Out.')
@@ -85,27 +140,20 @@ class House_Mode(hass.Hass):
       # Tasks here.
 
   def on_execute_just_arrived_automations(self, entity, attribute, old, new, kwargs):
-    self.log('Execute Just Arrived automations.')
+    self.log('Execute just arrived global automations.')
     self.call_service(globals.max_app, title = "House mode: Just arrived.",\
                                        message = "TTS",\
                                        data = {"media_stream": "alarm_stream",\
                                                "tts_text": "House mode: Just arrived."})
                                                # alarm_stream_max
     #day_today = datetime.today().weekday() # Monday is 0 Tue:1 Wed:2 Thu:3 Fri:4 Sat:5 Sun:6
-
-    working_day_return_code, working_day = FunctionLibrary.is_it_a_work_day_today('max') # To do: Derive users from who has arrived.
-    self.log(working_day_return_code)
-    self.log(working_day)
-    if working_day == "off" and self.now_is_between("09:00:00", "22:00:00"):
-      SqueezeboxControl.power_on_squeezebox(globals.squeezebox_transporter_power)
-      garage_door_state = GarageLibrary.check_if_garage_closed()
-      if garage_door_state == "closed":
-        GarageLibrary.switch_on_garage_door()
-
+    self.run_in(self.change_house_mode, 10, house_mode = "Home")
+  
   def on_execute_just_left_automations(self, entity, attribute, old, new, kwargs):
-    """This will execute some automations when everybody has left the house."""
+    """This will execute automations when everybody has left the house."""
     if old != "unavailable" and (old == "Home" or old == "Pre-Departure"):
       self.just_left_automations()
+
    
 
   def on_house_mode_change(self, entity, attribute, old, new, kwargs):
@@ -129,11 +177,18 @@ class House_Mode(hass.Hass):
 
   # Listen for an external event.
   def on_pre_departure_event(self, event, data, kwargs):
-    self.log("Event recieved.")
+    self.log("Event received.")
 
   def on_button_press_pre_departure(self, entity, attribute, old, new, kwargs):
     self.log("Departure Button Pressed.")
     self.select_option(globals.house_mode_selector, "Pre-departure")
+
+  def on_who_has_left_or_entered(self, entity, attribute, old, new, kwargs):
+    if old == "home":
+      self.log(str(entity) + " has left.")
+    if new == "home":
+      self.log(str(entity) + " has entered.")
+
 
 ###############################################################################################################
 # Other functions:
@@ -178,16 +233,6 @@ class House_Mode(hass.Hass):
     dark_state = self.get_state(globals.dark_sensor)
     if dark_state == "on":
       self.turn_on("scene.exit_stage_left")
-    #lights_to_fade_down = [globals.landing_light, globals.porch_light]
-    #for light_to_fade_down in lights_to_fade_down:
-    #  self.log(light_to_fade_down)
-    #  light_state = self.get_state(light_to_fade_down)
-    #  if dark_state == "on" and light_state == "on":
-    #    self.turn_on(light_to_fade_down, brightness = 30, transition = 30)
-    #self.turn_off(globals.dining_table_light)
-
-
-
 
   def away_automations(self):
     self.log("Away automations.")
@@ -198,3 +243,20 @@ class House_Mode(hass.Hass):
 #   def power_off_aiwa_hifi(self):
 #     self.turn_off(globals.power_aiwa)
 
+  def get_people_at_home(self):
+    persons_at_home = self.get_state("group.persons", attribute = "entity_id")
+    #self.log("Persons at home: " + str(persons_at_home))
+    for person_at_home in persons_at_home:
+      #self.log(person_at_home)
+      home_status = self.get_state(person_at_home)
+      #self.log("Home status: " + home_status)
+      if home_status == "home":
+        #self.log("Person element: " + person_at_home)
+        people_at_home.append(person_at_home)
+    #self.log("People at home: " + str(people_at_home))
+    return people_at_home
+
+  def change_house_mode(self, cb_args):
+    house_mode_to_change_to = cb_args["house_mode"]
+    self.log("House mode change: " + str(house_mode_to_change_to))
+    self.select_option(globals.house_mode_selector, house_mode_to_change_to)
