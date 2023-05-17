@@ -13,7 +13,6 @@ import globals_module as globals
 #from datetime import timedelta
 from datetime import date, datetime
 
-
 # Fordpass message formats:
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
 # Date and Time:
@@ -29,92 +28,73 @@ class Car(hass.Hass):
     self.log(this_script + " running at {}.".format(now))
     self.log("=" * globals.log_partition_line_length)
 
-    # Load external apps:    
-    global FunctionLibrary  
-    FunctionLibrary = self.get_app("function_library")
-
-    global GarageLibrary
-    GarageLibrary = self.get_app("garage")
+    # Load external app libraries:    
+    self.function_library = self.get_app("function_library")
+    self.garage_library = self.get_app("garage")
     
-    # Setup some global variables.
-    global longterm_update_handler
+    # Setup some variables:
     self.longterm_update_handler = 0
-    global shortterm_update_handler
     self.shortterm_update_handler = 0
-    global longterm_time_gap
-    longterm_time_gap = 4 # Hours
-    global shortterm_time_gap
-    shortterm_time_gap = 5 # Minutes
+    self.longterm_time_gap = 4 # Hours
+    self.shortterm_time_gap = 5 # Minutes
 
-    global ignition_status
-    ignition_status = self.get_state(globals.car_ignition_status)
-    if ignition_status != "unavailable":
-      self.log("Initial ignition status: " + ignition_status)
+    # Initial setup:
+    self.ignition_status = self.get_state(globals.car_ignition_status)
+    if self.ignition_status != "unavailable":
+      self.log("Initial ignition status: " + self.ignition_status)
     else:
       self.log("Car data is unavailable.")
   
-    global lock_status
-    lock_status = self.get_state(globals.car_lock)
-    if lock_status != "unavailable":
-      self.log("Initial door lock status: " + lock_status)
+    self.lock_status = self.get_state(globals.car_lock)
+    if self.lock_status != "unavailable":
+      self.log("Initial door lock status: " + self.lock_status)
 
-    global window_status
-    window_status = self.get_state(globals.car_window_position, attribute="state")
-    if window_status != "unavailable":
-      self.log("Window status: " + str(window_status))
+    self.window_status = self.get_state(globals.car_window_position, attribute="state")
+    if self.window_status != "unavailable":
+      self.log("Window status: " + str(self.window_status))
 
-    global alarm_status
-    alarm_status = self.get_state(globals.car_alarm)
-    if alarm_status != "unavailable":
-      self.log("Initial alarm status: " + alarm_status)
+    self.alarm_status = self.get_state(globals.car_alarm)
+    if self.alarm_status != "unavailable":
+      self.log("Initial alarm status: " + self.alarm_status)
+    if self.alarm_status == "SET" and self.window_status == "Closed":
+      self.log("Run long term timer.")
+      self.enable_long_timer()
+    elif self.alarm_status == "NOTSET":
+      self.log("Short term timer.")
+      self.enable_short_timer()
 
-    global battery_status
-    battery_status = self.get_state(globals.car_battery)
+    self.battery_status = self.get_state(globals.car_battery)
     #self.log(battery_status)
-    if battery_status == "STATUS_LOW":
+    if self.battery_status == "STATUS_LOW":
       self.log("Car battery is low.")
       self.enable_long_timer()
     
-    #global current_message_count
-    current_message_count = self.get_state(globals.car_messages)
-    if current_message_count != "unavailable":
-      securialert_status, message_new, return_message = self.get_fordpass_messages(current_message_count)
+    self.current_message_count = self.get_state(globals.car_messages)
+    if self.current_message_count != "unavailable":
+      securialert_status, message_new, return_message = self.get_fordpass_messages(self.current_message_count)
       self.log("securialert_status: " + securialert_status)
       self.log("message_new: " + message_new)
       self.log ("Return message: " + return_message)
 
     # Get current car position
-    global car_current_position_longitude
-    car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
-    self.log("Longtitude: " + str(car_current_position_longitude))
-    global car_current_position_latitude
-    car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
-    self.log("Latitude: " + str(car_current_position_latitude))
-    global car_position_current_zone
-    car_position_current_zone = self.get_state(globals.car_tracker)
-    self.log("Car postition current zone (if any): " + str(car_position_current_zone))
-    global car_position_last_change
-    car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
-    self.log("Car position last change: " + str(car_position_last_change))
-    
-    #if ignition_status == "Off" or alarm_status == "SET":
-    if alarm_status == "SET" and window_status == "Closed":
-      self.log("Run long term timer.")
-      self.enable_long_timer()
-    elif alarm_status == "NOTSET":
-    #elif ignition_status == "run":
-      self.log("Short term timer.")
-      self.enable_short_timer()
+    self.car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
+    self.log("Longtitude: " + str(self.car_current_position_longitude))
+    self.car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
+    self.log("Latitude: " + str(self.car_current_position_latitude))
+    self.car_position_current_zone = self.get_state(globals.car_tracker)
+    self.log("Car postition current zone (if any): " + str(self.car_position_current_zone))
+    self.car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+    self.log("Car position last change: " + str(self.car_position_last_change))
 
     # State monitors:
-    self.unlock_handle = self.listen_state(self.on_car_unlocked, globals.car_lock, old = "locked", new = "unlocked", duration = 30)
-    self.lock_handle = self.listen_state(self.on_car_locked, globals.car_lock, old = "unlocked", new = "locked", duration = 30)
-    self.ignition_handle01 = self.listen_state(self.on_ignition_change, globals.car_ignition_status)
+    self.unlock_handler = self.listen_state(self.on_car_unlocked, globals.car_lock, old = "locked", new = "unlocked", duration = 30)
+    self.lock_handler = self.listen_state(self.on_car_locked, globals.car_lock, old = "unlocked", new = "locked", duration = 30)
+    self.ignition_handler01 = self.listen_state(self.on_ignition_change, globals.car_ignition_status)
     self.listen_for_ford_pass_refresh_button = self.listen_state(self.on_button_refresh_status_pressed, globals.car_refresh_button)
     self.listen_state(self.on_message_count_change, globals.car_messages)
     #, old = current_message_count)
     self.listen_state(self.on_battery_state_changed, globals.car_battery)
-    self.alarm_off_handle = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status) #, new = "NOTSET", old = "SET")
+    self.alarm_off_handler = self.listen_state(self.on_car_alarm_change, globals.car_alarm_status) #, new = "NOTSET", old = "SET")
 
     self.car_tracker_entity = self.get_entity(globals.car_tracker)
     self.car_tracker_zone_change_handler = self.car_tracker_entity.listen_state(self.on_zone_change, duration = 30)
@@ -130,12 +110,17 @@ class Car(hass.Hass):
 ###############################################################################################################
   def on_car_unlocked(self, entity, attribute, old, new, kwargs):
     self.log("Car Unlocked.")
+    # Testing:
+    self.call_service(globals.max_app, title = "Car unlocked.",\
+                                         message = "TTS",\
+                                         data = {"media_stream": "alarm_stream_max",\
+                                                 "tts_text": "WARNING: Car has been unlocked."})
     lock_status = new
     ignition_status = self.get_state(globals.car_ignition_status)
     self.log("Ignition status: " + ignition_status)
     alarm_status = self.get_state(globals.car_alarm_status)
     self.log("Alarm status: " + alarm_status)
-    if FunctionLibrary.is_house_occupied == 2 and FunctionLibrary.is_car_at_home == 0:
+    if self.function_library.is_house_occupied == 2 and self.function_library.is_car_at_home == 0:
       self.log("Car unlocked and we are asleep.")
       self.call_service(globals.max_app, title = "Car unlocked.",\
                                          message = "TTS",\
@@ -233,12 +218,12 @@ class Car(hass.Hass):
         self.log("Home B departed.")
       if old == "Home":
         self.log("Home L departed.")
-        GarageLibrary.close_garage_and_power_off()
+        self.garage_library.close_garage_and_power_off()
       if old == "PBM":
         self.log("PBM Location departed.")
       if new == "Home":
         self.log("Home L arrived.")
-        GarageLibrary.switch_on_garage_door()
+        self.garage_library.switch_on_garage_door()
       elif new == "Home_B":
         self.log("Home B arrived.")
       elif new == "PBM":
@@ -322,13 +307,13 @@ class Car(hass.Hass):
       self.log("Door status: " + str(door_status))
       battery_status = self.get_state(globals.car_battery)
       self.log("Battery status: " + str(battery_status))
-      car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
-      car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
-      self.log("Longitude: " + str(car_current_position_longitude) + " , Latitude: " + str(car_current_position_latitude))
-      car_position_current_zone = self.get_state(globals.car_tracker)
-      self.log("Car postition current zone (if any): " + str(car_position_current_zone))
-      car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
-      self.log("Car position last change: " + str(car_position_last_change))
+      self.car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
+      self.car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
+      self.log("Longitude: " + str(self.car_current_position_longitude) + " , Latitude: " + str(self.car_current_position_latitude))
+      self.car_position_current_zone = self.get_state(globals.car_tracker)
+      self.log("Car postition current zone (if any): " + str(self.car_position_current_zone))
+      self.car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+      self.log("Car position last change: " + str(self.car_position_last_change))
     else:
       self.log("Car data unavailable.")
     self.log("=" * 60)
@@ -340,7 +325,7 @@ class Car(hass.Hass):
       self.log("Cancelling long timer.")
       self.cancel_timer(self.longterm_update_handler)
     if self.shortterm_update_handler == 0:
-      self.shortterm_update_handler = self.run_every(self.refresh_car_status, "now", shortterm_time_gap * 60)
+      self.shortterm_update_handler = self.run_every(self.refresh_car_status, "now", self.shortterm_time_gap * 60)
     self.longterm_update_handler = 0
     self.select_option(globals.fordpass_refresh_status, "Short Timer")
 
@@ -351,7 +336,7 @@ class Car(hass.Hass):
       self.cancel_timer(self.shortterm_update_handler)
     #self.log("Long timer handler: " + str(self.longterm_update_handler))
     if self.longterm_update_handler == 0:
-      self.longterm_update_handler = self.run_every(self.refresh_car_status, "now", longterm_time_gap * 60 * 60)
+      self.longterm_update_handler = self.run_every(self.refresh_car_status, "now", self.longterm_time_gap * 60 * 60)
     self.shortterm_update_handler = 0
     self.select_option(globals.fordpass_refresh_status, "Long Timer")
 
@@ -382,27 +367,29 @@ class Car(hass.Hass):
       self.log("Tyre pressure warning.")
       return_message = first_message
     elif first_message.find("SecuriAlert") != -1:
-      self.log("First message: " + first_message)
-      
-      securialert_status = "on"
-      alert_item_start = first_message.index("-") + 2
-      if first_message.find(":") == True:
-        alert_item_end = first_message.index(":")
+      if first_message == "SecuriAlert will no longer be available ":
+        pass
       else:
-        alert_item_end = len(first_message)
-      alert_item = first_message[alert_item_start:]
-      self.log("Alert item: " + str(alert_item))
-      alert_sub_item = alert_item.split("- ")
-      self.log("Alert sub-item: " + str(alert_sub_item))
-      #alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
-      alert_date_and_time = message_date_and_time.split(" ",1)
-      alert_date = alert_date_and_time[0]
-      self.log("Alert Date: " + str(alert_date))
-      #alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
-      alert_time = alert_date_and_time[1]
-      self.log("Alert Time: " + str(alert_time))
-      self.log("SecuriAlert")
-      return_message = alert_item
+        self.log("First message: " + first_message)
+        securialert_status = "on"
+        alert_item_start = first_message.index("-") + 2
+        if first_message.find(":") == True:
+          alert_item_end = first_message.index(":")
+        else:
+          alert_item_end = len(first_message)
+          alert_item = first_message[alert_item_start:]
+          self.log("Alert item: " + str(alert_item))
+          alert_sub_item = alert_item.split("- ")
+          self.log("Alert sub-item: " + str(alert_sub_item))
+          #alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
+          alert_date_and_time = message_date_and_time.split(" ",1)
+          alert_date = alert_date_and_time[0]
+          self.log("Alert Date: " + str(alert_date))
+          #alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
+          alert_time = alert_date_and_time[1]
+          self.log("Alert Time: " + str(alert_time))
+          self.log("SecuriAlert")
+          return_message = alert_item
     # self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
     # TO DO: Clear alert in x hours.
     return securialert_status, message_new, return_message
