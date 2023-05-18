@@ -27,22 +27,23 @@ class Cctv(hass.Hass):
     self.mqtt = self.get_plugin_api("MQTT")
     
     #Set up some variables:
-    global frigate_camera_url
-    frigate_camera_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/"  #+ camera_location +"/latest.jpg"
+    self.frigate_camera_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/"  #+ camera_location +"/latest.jpg"
     
     #self.set_value(globals.front_motion_detection_off_input_number, 0)
 
-    global FunctionLibrary  
-    FunctionLibrary = self.get_app("function_library")
+    # Load external app libraries:
+    self.function_library = self.get_app("function_library")
 
     # State monitors:
     # Switch person detection back on after a hour.
-    person_detection_switch_on_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
+    self.person_detection_switch_on_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
 
     # Event monitors:
     self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")
-    self.listen_state(self.on_front_motion_detect_off, globals.front_motion_detection_off_input_number)
+    self.listen_state(self.on_front_motion_detect_on_off, globals.front_motion_detection_off_input_number)
+    self.listen_state(self.on_front_motion_detect_on_off, globals.front_doorbell_person_detection_switch)
     sunset_time_handler = self.run_at_sunset(self.run_sunset_tasks)
+
 
 ###############################################################################################################
   # Callback functions:
@@ -117,8 +118,16 @@ class Cctv(hass.Hass):
     #event_type = data['topic']['after']['type']
     #self.log(event_type)
 
-  def on_front_motion_detect_off(self, entity, attribute, old, new, kwargs):
+  def on_front_motion_detect_on_off(self, entity, attribute, old, new, cb_args):
     self.log("Motion detect off select.")
+    self.log("Entity: " + str(entity))
+    self.log("New: " + str(new))
+    if old not in ["unavailable"]:
+      if entity == globals.front_doorbell_person_detection_switch:
+        self.log("Detection switch activated.")
+        self.camera_object_detect_on_off("front_doorbell", new)
+      elif entity == globals.front_motion_detection_off_input_number:
+        self.log("Detection minute timer activated.")
 
   def run_sunset_tasks(self, kwargs):
     self.turn_on(globals.front_doorbell_person_detection_switch)
@@ -138,8 +147,8 @@ class Cctv(hass.Hass):
     os.makedirs(picture_directory)
     #timed_snapshot_filename = globals.cctv_media_location + "/" + camera_id +"/" + directory_datestamp + "/" + camera_id + "_" + picture_type + "." + image_timestamp + ".jpg"
     timed_snapshot_filename = picture_directory + "/" + picture_filename
-    self.get_latest_camera_picture(image_url = frigate_camera_url + camera_id + "/latest.jpg", image_filename = timed_snapshot_filename)
-    self.get_latest_camera_picture(image_url = frigate_camera_url + camera_id + "/latest.jpg", image_filename = snapshot_filename)
+    self.get_latest_camera_picture(image_url = self.frigate_camera_url + camera_id + "/latest.jpg", image_filename = timed_snapshot_filename)
+    self.get_latest_camera_picture(image_url = self.frigate_camera_url + camera_id + "/latest.jpg", image_filename = snapshot_filename)
     return timed_snapshot_filename, snapshot_filename
 
   def get_latest_camera_picture(self, image_url, image_filename):
@@ -162,3 +171,7 @@ class Cctv(hass.Hass):
       self.log("Zone(s) entered: " + str(zone))
       self.log("Detected object: " + str(object))
 
+  def camera_object_detect_on_off(self, camera_name, detect_state):
+    self.log("Switching camera object detection: " + str(detect_state) + "for camera: " + str(camera_name))
+    frigate_camera_id = "frigate/" + camera_name + "/detect/set"
+    self.mqtt.mqtt_publish(frigate_camera_id, detect_state.upper(), namespace = "mqtt")
