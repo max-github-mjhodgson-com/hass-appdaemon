@@ -4,10 +4,13 @@
 # Will send a Telegram message when the kettle has boiled.
 #
 # Max Hodgson 2023
-# Version: 02012023.01
+# Version: 18052023.01
 
 import appdaemon.plugins.hass.hassapi as hass
-import time
+
+import os
+#import time
+
 from datetime import datetime
 import globals_module as globals
 
@@ -16,17 +19,16 @@ class Kitchen(hass.Hass):
   # Monitors:
   
   def initialize(self):
-    self.log("=" * 30)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
-    self.log("running at {}.".format(now))
+    this_script = os.path.basename(__file__)
+    self.log("=" * globals.log_partition_line_length)
+    self.log(this_script + " running at {}.".format(now))
+    self.log("=" * globals.log_partition_line_length)
     
     # Load external AppDaemon libraries:
-    global FunctionLibrary  
-    FunctionLibrary = self.get_app("function_library")
+    self.function_library = self.get_app("function_library")
 
-    global kettle_gone_to_zero_handler
-    kettle_gone_to_zero_handler = 0
-    #global kettle_message_sent
+    self.kettle_gone_to_zero_handler = 0
     self.kettle_message_sent = 0
 
     # State monitors.
@@ -44,15 +46,15 @@ class Kitchen(hass.Hass):
 ###############################################################################################################
   def on_kettle_on(self, entity, attribute, old, new, kwargs):
     self.log("Kettle power switched ON.")
-    #if FunctionLibrary.is_house_occupied() == 1:
+    #if function_library.is_house_occupied() == 1:
     #  self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "300")
-    if kettle_gone_to_zero_handler != 0:
+    if self.kettle_gone_to_zero_handler != 0:
       try:
-        self.cancel_listen_state(kettle_gone_to_zero_handler)
+        self.cancel_listen_state(self.kettle_gone_to_zero_handler)
       except Exception:
         self.log("No open timer event being listened for.")
       else:
-        self.set_value(kettle_gone_to_zero_handler, 0)
+        self.set_value(self.kettle_gone_to_zero_handler, 0)
       finally:
        self.log("Kettle reset to zero listener was cancelled.")
 
@@ -60,9 +62,9 @@ class Kitchen(hass.Hass):
     self.log("Kettle power switched OFF.")
     self.call_service("timer/cancel", entity_id = globals.kettle_timer)
     self.kettle_message_sent = 0
-    #self.log(kettle_gone_to_zero_handler)
-    #if kettle_gone_to_zero_handler != 0:
-    #  self.log(kettle_gone_to_zero_handler)
+    #self.log(self.kettle_gone_to_zero_handler)
+    #if self.kettle_gone_to_zero_handler != 0:
+    #  self.log(self.kettle_gone_to_zero_handler)
 
   def on_kettle_timer_start(self, event, data, kwargs):
     self.log("Kettle timer started.")
@@ -76,12 +78,12 @@ class Kitchen(hass.Hass):
   def on_kettle_power_threshold_reached(self, entity, attribute, old, new, kwargs):
     self.log("Kettle Power Threshold Reached.")
     self.log(self.kettle_power_threshold_handler)
-    kettle_gone_to_zero_handler = self.listen_state(self.on_kettle_return_to_zero, globals.kettle_threshold, new = "off", old = "on", duration = "10", oneshot = "true")
+    self.kettle_gone_to_zero_handler = self.listen_state(self.on_kettle_return_to_zero, globals.kettle_threshold, new = "off", old = "on", duration = "10", oneshot = "true")
     #self.call_service("timer/start", entity_id = globals.kettle_timer)
     
   def on_kettle_return_to_zero(self, entity, attribute, old, new, kwargs):
     self.log("Kettle has returned to zero.")
-    self.log(kettle_gone_to_zero_handler)
+    self.log(self.kettle_gone_to_zero_handler)
     self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "1")
     if self.kettle_message_sent == 0:
       self.call_service(globals.max_telegram, title = "Kettle Alert", message = "The kettle has boiled.")
@@ -90,8 +92,8 @@ class Kitchen(hass.Hass):
                                        data = {"media_stream": "alarm_stream",\
                                                "tts_text": "Kettle has boiled."})
       self.kettle_message_sent = 1
-    #if kettle_gone_to_zero_handler != 0:
-    #  self.cancel_listen_state(kettle_gone_to_zero_handler)
+    #if self.kettle_gone_to_zero_handler != 0:
+    #  self.cancel_listen_state(self.kettle_gone_to_zero_handler)
 
   def on_button_press_turn_kettle_on(self, entity, attribute, old, new, kwargs):
     self.log("Kettle Button Pressed.")
