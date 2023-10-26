@@ -1,11 +1,16 @@
 # Global Variables
+#
 # Imports secrets.
 import appdaemon.plugins.hass.hassapi as hass
 import secrets_module as secrets
 
+persons_group = "group.persons"
+mobile_app_users = secrets.mobile_app_users
+
 # Max
 person_max = secrets.person_max
-max_phone_tracker = secrets.max_phone_tracker
+max_phone = secrets.max_phone
+max_phone_tracker = secrets.max_phone
 
 log_partition_line_length = 40
 
@@ -17,6 +22,7 @@ max_app = secrets.max_app
 max_telegram = secrets.max_telegram
 max_app_note_9 = secrets.max_app_note_9
 notify_max_all = "notify/max_all"
+hall_panel_app = "notify/mobile_app_hall_panel"
 
 # Misc
 dark_sensor = "binary_sensor.dark"
@@ -59,13 +65,16 @@ cards_garage_door = secrets.cards_garage_door
 # CCTV:
 cctv_media_location = "/config/media/cctv"
 #frontdoor_camera = "camera.front_door"
-frontdoor_camera = "camera.front_doorbell"
+front_doorbell = "front_doorbell"
+#frontdoor_camera = "camera.front_doorbell"
+frontdoor_camera = "camera." + front_doorbell
 frigate_port = "5000"
 frigate_current_frontdoor_pic_url =  "http://" + secrets.frigate_hostname + ":" + frigate_port + "/api/front_doorbell/latest.jpg"
 #doorbell_pressed_picture = "/config/tmp/doorbell_pressed.jpg"
-front_doorbell_person_detection_switch = "input_boolean.person_detection_frontdoor"
+front_doorbell_person_detection_switch = "input_boolean.person_detection_front_doorbell"
 lovelace_cctv_tab = "/lovelace/10"
-front_motion_detection_off_input_number = "input_number.turn_off_person_detection_front_door_for"
+front_motion_detection_off_input_number = "input_number.turn_off_person_detection_front_doorbell"
+persons_in_zone_count = {front_doorbell:"sensor.garden_person_count"}
 
 # Squeezeboxes:
 squeezebox_dining = "media_player.dining_room"
@@ -96,6 +105,8 @@ players = { "lounge": { "squeezebox_id": squeezebox_transporter,
                                 "remote_amp_input": "input_ld",
                                 "remote_type": "ir"}
           }
+
+tv_power = "switch.teckin05"
 
 # House Mode:
 house_mode_selector = "input_select.house_mode_l"
@@ -137,12 +148,14 @@ android_click_action_close_garage_door = "close_garage_door"
 android_click_action_power_off_garage_door = "garage_power_off"
 android_click_action_close_garage_door_in_5_minutes = "close_garage_door_in_5_minutes"
 android_click_action_open_garage_door_in_5_minutes = "open_garage_door_in_5_minutes"
+android_app_click_action_confirm_location_notification = "confirm_location_notification"
 
 android_app_action_open_garage_door = {"action":android_click_action_open_garage_door, "title":"Open Door"}
 android_app_action_switch_off_garage_door = {"action":android_click_action_power_off_garage_door, "title":"Power OFF"}
 android_app_action_close_garage_door = {"action":android_click_action_close_garage_door, "title":"Close Door"}
 android_app_action_close_garage_door_in_5_minutes = {"action":android_click_action_close_garage_door_in_5_minutes, "title":"Close Door in 5 Minutes"}
 android_app_action_open_garage_door_in_5_minutes = {"action":android_click_action_open_garage_door_in_5_minutes, "title":"Open Door in 5 Minutes"}
+android_app_action_confirm_notification = {"action":android_app_click_action_confirm_location_notification, "title":"Confirm Location Notification"}
 
 # Lights:
 porch_light = "light.porch_old"
@@ -223,12 +236,146 @@ fordpass_tyre_pressure_front_recommended = 2.4
 fordpass_tyre_pressure_rear_recommended = 2.4
 
 max_phone_bluetooth = secrets.max_phone_bluetooth
+diskstation_id = "switch.b3_diskstation01"
 
 # Zones
 pbm_zone = secrets.pbm_zone
 
 weather = "weather.accuweather"
 has_it_rained_today_switch = "input_boolean.has_it_been_raining"
+
+house_movement_sensors = "group.house_movement_sensors"
+
+# Network:
+network_vpn_ping_status = "binary_sensor.vpn_remote_endpoint_b"
+network_gateway_ping_status = "binary_sensor.draytek_router_gateway_ping"
+network_remote_gateway_ping_status = "binary_sensor.virgin_gateway_ping"
+network_modem_ping_status = "binary_sensor.virgin_modem_ping"
+network_edgeswitch_ping_status = "binary_sensor.edgeswitch_loft_ping"
+network_remote_dns1_ping_status = "binary_sensor.remote_dns_test_1_ping_8_8_8_8"
+
+
+# App notification channels:
+weather_channel = "Weather_Notfication"
+
+# Android TV:
+android_tv_app_details =    {
+                                "Off":
+                                {
+                                    "ID": "None",
+                                    "Exec": "",
+                                    "Input_Select": "1",
+                                },
+
+                                "Home Screen":
+                                {   "ID": "com.google.android.tvlauncher",
+                                    "Exec": "adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME",
+                                    "Input_Select": "1",
+                                },
+
+                                "Amazon Prime Video":
+                                {
+                                    "ID": "com.amazon.amazonvideo.livingroom",
+                                    "Exec": "",
+                                    "Input_Select": "0",
+                                },
+
+                                "Front Doorbell Stream":
+                                {   "ID": "None",
+                                    "Exec": "adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME",
+                                    "Input_Select": "0",
+                                },
+
+                                "IP Cam Viewer":
+                                {   "ID": "com.rcreations.WebCamViewerPaid",
+                                    "Exec": "am start -a android.intent.action.VIEW -n com.rcreations.WebCamViewerPaid/.IpCamViewerActivity",                                    "Input_Select": "1",\
+                                },
+
+                                "IPlayer":
+                                {
+                                    "ID": "com.nvidia.bbciplayer",
+                                    "Exec": "",
+                                    "Input_Select": "0",
+                                },
+
+                                "Jellyfin":
+                                {
+                                    "ID": "",
+                                    "Exec": "am start -a android.intent.action.VIEW -n org.jellyfin.androidtv/.ui.startup.StartupActivity",
+                                    "Input_Select": "0",
+                                },
+
+                                "Kodi":
+                                {
+                                    "ID": "org.xbmc.kodi",
+                                    "Exec": "am start -a android.intent.action.VIEW -d -n org.xbmc.kodi/.Splash",
+                                    "Input_Select": "1",
+                                },
+
+                                "Netflix":
+                                {
+                                    "ID": "com.netflix.ninja",
+                                    "Exec": "am start -a android.intent.action.VIEW -n android.intent.action.VIEW -d -n com.netflix.ninja/.MainActivity",
+                                    "Input_Select": "0",
+                                },
+
+                                "Nvidia Games":
+                                {
+                                    "ID": "",
+                                    "Exec": "am start -a android.intent.action.VIEW -n com.nvidia.tegrazone3/com.nvidia.geforcenow.MallActivity",
+                                    "Input_Select": "1",
+                                },
+                                
+                                "PlutoTV":
+                                {
+                                    "ID": "tv.pluto.android",
+                                    "Exec": "am start -a android.intent.action.VIEW -n tv.pluto.android/.leanback.controller.LeanbackSplashOnboardActivity",
+                                    "Input_Select": "1",
+                                },
+
+                                "Sideload Launcher":
+                                {
+                                    "ID": "eu.chainfire.tv.sideloadlauncher",
+                                    "Exec": "",
+                                    "Input_Select": "0",
+                                },
+
+                                "Sky News":
+                                {
+                                    "ID": "com.onemainstream.skynews.android",
+                                    "Exec": "am start -a android.intent.action.VIEW -n android.intent.action.VIEW -d -n com.onemainstream.skynews.android/.common.splash.SplashActivity",
+                                    "Input_Select": "1",
+                                },
+
+                                "Smart Tube": 
+                                {
+                                    "ID": "com.teamsmart.videomanager.tv",
+                                    "Exec": "am start -a android.intent.action.VIEW -n com.teamsmart.videomanager.tv/com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity",
+                                    "Input_Select": "1",
+                                },
+                                
+                                "Steam Link":
+                                {
+                                    "ID": "com.valvesoftware.steamlink",
+                                    "Exec": "am start -a android.intent.action.VIEW -n com.valvesoftware.steamlink/com.valvesoftware.steamlink.SteamShellActivity",
+                                    "Input_Select": "1",
+                                },
+
+                                "Twitch Video":
+                                {
+                                    "ID": "com.fgl27.twitch",
+                                    "Exec": "am start -a android.intent.action.VIEW -n com.fgl27.twitch/.PlayerActivity",
+                                    "Input_Select": "1",
+                                },
+
+                                "VLC":
+                                {
+                                    "ID": "org.videolan.vlc",
+                                    "Exec": "am start -a android.intent.action.VIEW -n org.videolan.vlc/.StartActivity",
+                                    "Input_Select": "1",
+                                },
+                            }
+
 
 class Globals(hass.Hass):
     def initialize(self):
