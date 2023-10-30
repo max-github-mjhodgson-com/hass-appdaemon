@@ -44,28 +44,32 @@ class Doorphone(hass.Hass):
     self.camera_location = "front_doorbell"
     # Uses http as it is on the internal network.
     #self.camera_image_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/"+ self.camera_location +"/latest.jpg"
-    #self.camera_image_path = "/config/media/cctv/" + self.camera_location + "/tmp/"
+    self.media_cctv_path = "/config/media/cctv/"
+    self.camera_image_path = self.media_cctv_path + self.camera_location + "/tmp/"
+    self.latest_camera_image = self.media_cctv_path + self.camera_location + "/latest/person.jpg"
     #self.camera_image_name = self.camera_image_path + self.camera_location + "_latest.jpg"
-
-    self.mqtt = self.get_plugin_api("MQTT")
 
     # Load external app libraries:
     #self.function_library = self.get_app("function_library")  # Not currently used.
+    self.mqtt = self.get_plugin_api("MQTT")
     self.garage_library = self.get_app("garage")
     self.cctv_library = self.get_app("cctv")
-
-    self.asterisk_comms = self.get_app("asterisk_comms")
-    # Example: self.asterisk_comms.hangup(globals.doorphone_extension_number)
+    self.asterisk_comms = self.get_app("asterisk_comms")  # Example: self.asterisk_comms.hangup(globals.doorphone_extension_number)
     
     # Last doorbell ring time setup:
     self.last_ring = datetime.now() - timedelta(seconds = 35)
 
     self.doorphone_event_type = "sensor.doorphone_event_type"
     #self.doorphone_event_type_entity = self.get_entity(self.doorphone_event_type)
-
     self.doorphone_message_title = "Door Phone Alert"
 
+    #snapshot_filename, latest_picture_filename = self.cctv_library.get_picture_from_frigate("front_doorbell", "person")
+    #self.log("Snapshot filename: " + str(snapshot_filename))
+    #self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.(Doorphone)")    
+
+
     # Testing:
+    #self.take_picture(camera_location = self.camera_location, picture_type = "doorbell", picture_caption = "Doorbell Button Pressed (API).")
     #self.take_picture("front_doorbell", "doorphone", "test")
     #self.cctv_library.take_picture(self.camera_location = "front_doorbell", picture_type = "doorbell", picture_caption = "Test.")
     #self.run_in(self.cctv_library.get_latest_camera_picture, 1, image_url = self.camera_image_url, image_filename = "/config/tmp/test.jpg")
@@ -75,11 +79,16 @@ class Doorphone(hass.Hass):
     #self.take_reboot_picture("Message", "/config/media/cctv/fred.jpg", self.camera_image_url)
 
     # State monitors
-    self.new_event_handler = self.listen_state(self.on_event_detected, self.doorphone_event_type, old = "0", new = ["900", "1102"])
+    self.new_event_handler1 = self.listen_state(self.on_event_detected, self.doorphone_event_type, old = "0", new = "900")
+    self.new_event_handler2 = self.listen_state(self.on_event_detected, self.doorphone_event_type, old = "0", new = "1102")
     self.card_used_handler = self.listen_state(self.on_doorphone_card_used, self.doorphone_event_type, new = "600")
     self.system_up_handler = self.listen_state(self.on_doorphone_system_up, self.doorphone_event_type, new = "1101")
     
-    self.doorbell_button_handler = self.listen_state(self.on_doorphone_doorbell_button_pressed, self.doorphone_event_type, new = ["500", "501", "502", "504"])
+    self.doorbell_button_handler = self.listen_state(self.on_doorphone_doorbell_button_pressed, self.doorphone_event_type, new = "500")
+    self.doorbell_button_handler = self.listen_state(self.on_doorphone_doorbell_button_pressed, self.doorphone_event_type, new = "501")
+    self.doorbell_button_handler = self.listen_state(self.on_doorphone_doorbell_button_pressed, self.doorphone_event_type, new = "502")
+    self.doorbell_button_handler = self.listen_state(self.on_doorphone_doorbell_button_pressed, self.doorphone_event_type, new = "504")
+
     self.doorbell_tamper_handler = self.listen_state(self.on_doorphone_tamper, self.doorphone_event_type, new = "1100")
     self.person_at_front_frigate = self.listen_state(self.on_person_at_front_new, globals.front_doorbell_person_sensor, new = "on")
     self.doorphone_poe_power_handler = self.listen_state(self.on_doorphone_power_off, globals.doorphone_power_poe_injector, new = "off", duration = 10)
@@ -156,6 +165,7 @@ class Doorphone(hass.Hass):
                                                     data = {"clickAction":globals.lovelace_cctv_tab,\
                                                             "image":globals.frigate_current_frontdoor_pic_url})
           self.take_picture(camera_location = self.camera_location, picture_type = "doorbell", picture_caption = "Doorbell Button Pressed (API).")
+          #self.cctv_library.get_picture_from_frigate("front_doorbell", "doorbell")
           self.turn_on("input_boolean.doorbell_pressed")
           self.listen_for_reset_doorbell_pressed = self.listen_event(self.reset_doorbell_pressed_flag, "reset_doorbell_pressed_flag", oneshot=True)
   
@@ -213,15 +223,22 @@ class Doorphone(hass.Hass):
     event_picture_url = "https://" + globals.home_assistant_url + event_picture
     self.log("Event Picture: " + event_picture_url)
     if self.get_state(globals.front_doorbell_person_detection_switch) == "on":  # Switch off alerts if they get annoying.
+      snapshot_filename = self.cctv_library.get_picture_from_frigate("front_doorbell", "person")
+      self.log("Snapshot filename: " + str(snapshot_filename))
       self.log("Door phone person at front (new), sending message.")
-      self.call_service(globals.max_telegram, title = "Person at front (new)", message = "Person at Front (new).")
-      #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = "Person at front.")
-      self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
-                                         message = "Person Detected at Front (Click to view camera).",\
-                                         data = {"channel":"Front_Door",\
-                                                 "tag":"Person",\
-                                                 "image":event_picture_url,\
-                                                 "clickAction": globals.lovelace_cctv_tab })
+      if self.get_state("binary_sensor.internet_down") == "on":
+        self.call_service(globals.max_telegram, title = "Person at front.", message = "Person at Front (new Doorphone version).")
+        self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.")
+        #self.log("URL: " + str(event_picture_url))
+        #self.call_service("telegram_bot/send_photo", url = event_picture_url, caption = "Person at front.(Doorphone)")
+        self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
+                                           message = "Person Detected at Front (Click to view camera).",\
+                                           data = {"channel":"Front_Door",\
+                                                   "tag":"Person",\
+                                                   "image":event_picture_url,\
+                                                   "clickAction": globals.lovelace_cctv_tab })
+      else:
+        self.call_service("notify/max_sms", message = "Person detected at front door (no internet).")
     else:
       self.log("Person detection is switched off.")
 
@@ -252,7 +269,7 @@ class Doorphone(hass.Hass):
   # Take a picture and send it (by Telegram).
   def take_picture(self, camera_location, picture_type, picture_caption):
     self.log("Take picture: " + picture_type)
-    timed_snapshot_filename, snapshot_filename = self.cctv_library.get_picture_from_frigate(self.camera_location, picture_type = "doorbell")
+    timed_snapshot_filename, snapshot_filename = self.cctv_library.get_picture_from_frigate(self.camera_location, picture_type)
     self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = picture_caption)
 
   def reset_doorbell_pressed_flag(self, event_name, data, kwargs):
