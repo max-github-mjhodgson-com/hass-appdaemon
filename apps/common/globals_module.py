@@ -282,7 +282,7 @@ android_tv_app_details =    {
 
                                 "Front Doorbell Stream":
                                 {   "ID": "None",
-                                    "Exec": "adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME",
+                                    "Exec": "am start -a android.intent.action.VIEW -d " + secrets.front_doorbell_stream + " -n org.videolan.vlc/.gui.video.VideoPlayerActivity",
                                     "Input_Select": "0",
                                 },
 
