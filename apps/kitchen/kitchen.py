@@ -54,7 +54,9 @@ class Kitchen(hass.Hass):
       except Exception:
         self.log("No open timer event being listened for.")
       else:
-        self.set_value(self.kettle_gone_to_zero_handler, 0)
+        self.log("Was set_value.")
+        #self.set_value(self.kettle_gone_to_zero_handler, 0)
+        pass
       finally:
        self.log("Kettle reset to zero listener was cancelled.")
 
@@ -87,10 +89,13 @@ class Kitchen(hass.Hass):
     self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "1")
     if self.kettle_message_sent == 0:
       self.call_service(globals.max_telegram, title = "Kettle Alert", message = "The kettle has boiled.")
-      self.call_service(globals.max_app, title = "Kettle has boiled.",\
-                                       message = "TTS",\
-                                       data = {"media_stream": "alarm_stream",\
-                                               "tts_text": "Kettle has boiled."})
+      for notify_kitchen_users in [globals.max_app, globals.hall_panel_app]:
+        self.call_service(notify_kitchen_users, title = "Kettle has boiled.",\
+                                                message = "TTS",\
+                                                data = {"media_stream": "alarm_stream",\
+                                                        "tts_text": "Kettle has boiled.",\
+                                                        "confirmation": "true",\
+                                                        "timeout": 30 })
       self.kettle_message_sent = 1
     #if self.kettle_gone_to_zero_handler != 0:
     #  self.cancel_listen_state(self.kettle_gone_to_zero_handler)
