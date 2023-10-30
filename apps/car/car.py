@@ -37,6 +37,8 @@ class Car(hass.Hass):
     self.shortterm_update_handler = 0
     self.longterm_time_gap = 4 # Hours
     self.shortterm_time_gap = 5 # Minutes
+    self.alarm_armed = "ARMED"
+    self.alarm_disarmed = "DISARMED"
 
     # Initial setup:
     self.ignition_status = self.get_state(globals.car_ignition_status)
@@ -49,17 +51,17 @@ class Car(hass.Hass):
     if self.lock_status != "unavailable":
       self.log("Initial door lock status: " + self.lock_status)
 
-    self.window_status = self.get_state(globals.car_window_position, attribute="state")
+    self.window_status = self.get_state(globals.car_window_position, attribute = "state")
     if self.window_status != "unavailable":
       self.log("Window status: " + str(self.window_status))
 
     self.alarm_status = self.get_state(globals.car_alarm)
     if self.alarm_status != "unavailable":
       self.log("Initial alarm status: " + self.alarm_status)
-    if self.alarm_status == "SET" and self.window_status == "Closed":
+    if self.alarm_status == self.alarm_armed and self.window_status == "Closed":
       self.log("Run long term timer.")
       self.enable_long_timer()
-    elif self.alarm_status == "NOTSET":
+    elif self.alarm_status == self.alarm_disarmed:
       self.log("Short term timer.")
       self.enable_short_timer()
 
@@ -83,7 +85,7 @@ class Car(hass.Hass):
     self.log("Latitude: " + str(self.car_current_position_latitude))
     self.car_position_current_zone = self.get_state(globals.car_tracker)
     self.log("Car postition current zone (if any): " + str(self.car_position_current_zone))
-    self.car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+    self.car_position_last_change = self.get_state(globals.car_tracker, attribute = "timestamp")
     self.log("Car position last change: " + str(self.car_position_last_change))
 
     # State monitors:
@@ -111,10 +113,10 @@ class Car(hass.Hass):
   def on_car_unlocked(self, entity, attribute, old, new, kwargs):
     self.log("Car Unlocked.")
     # Testing:
-    self.call_service(globals.max_app, title = "Car unlocked.",\
-                                         message = "TTS",\
-                                         data = {"media_stream": "alarm_stream_max",\
-                                                 "tts_text": "WARNING: Car has been unlocked."})
+    #self.call_service(globals.max_app, title = "Car unlocked.",\
+    #                                     message = "TTS",\
+    #                                     data = {"media_stream": "alarm_stream_max",\
+    #                                             "tts_text": "WARNING: Car has been unlocked."})
     lock_status = new
     ignition_status = self.get_state(globals.car_ignition_status)
     self.log("Ignition status: " + ignition_status)
@@ -137,10 +139,10 @@ class Car(hass.Hass):
 
   def on_car_alarm_change(self, entity, attribute, old, new, kwargs):
     self.log("Car alarm status change, new, old: " +str(new) + ", " + str(old))
-    window_status = self.get_state(globals.car_window_position, attribute="state")
+    window_status = self.get_state(globals.car_window_position, attribute = "state")
     self.log("Window status: " + str(window_status))
-    if old == "SET" and new == "NOTSET":
-      self.log("Car alarm is UNSET.")
+    if old == self.alarm_armed and new == self.alarm_disarmed:
+      self.log("Car alarm is disarmed.")
       self.enable_short_timer()
       car_kit_connected = self.get_state(globals.max_phone_bluetooth, attribute = "connected_paired_devices")
       self.log("Car kit: " + str(car_kit_connected))
@@ -152,8 +154,8 @@ class Car(hass.Hass):
                                            message = "TTS",\
                                            data = {"media_stream": "alarm_stream_max",\
                                                    "tts_text": "Car alarm has been disarmed."})
-    if new == "SET": # and old == "UNSET":
-       self.log("Car alarm is SET.")
+    if new == self.alarm_armed: # and old == "UNSET":
+       self.log("Car alarm is ARMED.")
        # and windows are closed?
        if window_status == "Closed":
          self.log("Windows are closed.")
@@ -197,7 +199,9 @@ class Car(hass.Hass):
     current_message_count = self.get_state(globals.car_messages)
     self.log("Old message count: " + str(old))
     self.log("New message count: " + str(new))
-    if old != "unavailable" or new != "unavailable":
+    if old == "unavailable" or new == "unavailable":
+      self.log("Invalid new or old value.")
+    else:
       if new > old:
         self.log("New message has arrived.")
         current_message_count = self.get_state(globals.car_messages)
@@ -212,7 +216,8 @@ class Car(hass.Hass):
         self.log("Message deleted. Current number of messages: " + str(current_message_count))
 
   def on_zone_change(self, entity, attribute, old, new, kwargs):
-    if old != "unavailable" or new != "unavailable":
+    zone_arrived = False
+    if old != "unavailable" and new != "unavailable":
       self.log("Zone changed: (New): " + new + "(Old): " + old)
       if old == "Home_b":
         self.log("Home B departed.")
@@ -223,13 +228,18 @@ class Car(hass.Hass):
         self.log("PBM Location departed.")
       if new == "Home":
         self.log("Home L arrived.")
+        zone_arrived = True
         self.garage_library.switch_on_garage_door()
       elif new == "Home_B":
         self.log("Home B arrived.")
+        zone_arrived = True
       elif new == "PBM":
         self.log("PBM Location arrived.")
+        zone_arrived = True
     else:
       self.log("Current/Previous Location unavailable")
+    if zone_arrived == True:
+      self.call_service(globals.max_app, message = "request_location_update")
   
   def on_window_state_change(self, entity, attribute, old, new, kwargs):
       alarm_status = self.get_state(globals.car_alarm_status)
@@ -274,6 +284,12 @@ class Car(hass.Hass):
   def on_tyre_pressure_low(self, entity, attribute, old, new, cb_args):
     self.log("Car tyre pressure low.")
     #self.set_state("sensor.fordpass_alarm_sensor", state="disarmed", attributes = {"friendly_name": "Ford Pass Alarm Sensor"})
+
+  def on_car_left_unlocked(self, entity, attribute, old, new, cb_args):
+    self.log("Car left unlocked.")
+    car_location = self.get_state(globals.car_tracker)
+    if car_location == "":
+      self.log("Car is at home.")
     
 ###############################################################################################################
 # Other functions:
@@ -291,7 +307,8 @@ class Car(hass.Hass):
 
   def get_car_status(self):
     ignition_status = self.get_state(globals.car_ignition_status)
-    alarm_status=""
+    alarm_status = ""
+    window_status = ""
     if ignition_status != "unavailable":
       self.log("=" * 60)
       self.log("Current car status:")
@@ -393,3 +410,11 @@ class Car(hass.Hass):
     # self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
     # TO DO: Clear alert in x hours.
     return securialert_status, message_new, return_message
+
+  def lock_car(self):
+    self.log("I will lock the car.")
+    self.call_service("lock/lock", entity_id = globals.car_lock)
+
+  def unlock_car(self):
+    self.log("I will unlock the car.")
+    self.call_service("lock/unlock", entity_id = globals.car_lock)
