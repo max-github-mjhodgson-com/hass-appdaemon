@@ -49,7 +49,7 @@ garage_light_off_timer_duration = "120"
 doorphone_alert_channel = "Doorphone"
 doorphone_doorbell_tag = "doorbell"
 frontdoor_motion_timer = "timer.front_door_motion"
-doorphone_power_poe_injector = "switch.silvercrest01_l3"
+doorphone_power_poe_injector = "switch.unifi_switch_hall_grandstream_doorphone_poe"
 reboot_start_time = "01:29:00"
 reboot_end_time = "01:35:00"
 frigate_hostname = secrets.frigate_hostname
@@ -74,36 +74,43 @@ frigate_current_frontdoor_pic_url =  "http://" + secrets.frigate_hostname + ":" 
 front_doorbell_person_detection_switch = "input_boolean.person_detection_front_doorbell"
 lovelace_cctv_tab = "/lovelace/10"
 front_motion_detection_off_input_number = "input_number.turn_off_person_detection_front_doorbell"
-persons_in_zone_count = {front_doorbell:"sensor.garden_person_count"}
+persons_in_zone_count = {front_doorbell: "sensor.garden_person_count"}
 
 # Squeezeboxes:
 squeezebox_dining = "media_player.dining_room"
 squeezebox_spare_bedroom = "media_player.spare_bedroom"
 squeezebox_transporter = "media_player.transporter"
-squeezebox_transporter_power = "switch.teckin07"
+#squeezebox_transporter_power = "switch.teckin07"
+squeezebox_transporter_power = "switch.xenon01_l3"
 squeezebox_transporter_timer = "timer.squeezebox_transporter_auto_power_off"
 # Nested dictionary of SB locations, remote functions and power controls.
-players = { "lounge": { "squeezebox_id": squeezebox_transporter,
-                        "power": squeezebox_transporter_power,
-                        "power_off_timer": squeezebox_transporter_timer,
-                        "friendly_name": "Transporter",
-                        "friendly_location": "Lounge",
-                        "remote_location": "remote.lounge",
-                        "remote_amp": "pioneer_amp",
-                        "remote_amp_input": "input_tuner",
-                        "remote_type": "ir"},
-            "spare_bedroom": { "squeezebox_id": squeezebox_spare_bedroom,
+players = { "lounge":       {
+                                "squeezebox_id": squeezebox_transporter,
+                                "power": squeezebox_transporter_power,
+                                "power_off_timer": squeezebox_transporter_timer,
+                                "friendly_name": "Transporter",
+                                "friendly_location": "Lounge",
+                                "remote_location": "remote.lounge",
+                                "remote_amp": "pioneer_amp",
+                                "remote_amp_input": "input_tuner",
+                                "remote_type": "ir",
+                            },
+            "spare_bedroom": {
+                                "squeezebox_id": squeezebox_spare_bedroom,
                                 #"power": "none",
                                 "friendly_name": "Spare Bedroom Radio",
-                                "friendly_location": "Spare Bedroom"},
-            "dining_room": { "squeezebox_id": squeezebox_dining,
+                                "friendly_location": "Spare Bedroom",
+                            },
+            "dining_room": { 
+                                "squeezebox_id": squeezebox_dining,
                                 #"power": "none",
                                 "friendly_name": "Dining Room",
                                 "friendly_location": "Dining Room",
                                 "remote_location": "remote.lounge",
                                 "remote_amp": "pioneer_amp",
                                 "remote_amp_input": "input_ld",
-                                "remote_type": "ir"}
+                                "remote_type": "ir",
+                            }
           }
 
 tv_power = "switch.teckin05"
@@ -134,6 +141,8 @@ test_reader = secrets.test_reader
 kettle = "switch.teckin06"
 kettle_timer = "timer.kettle_auto_switch_off"
 kettle_timer_active = "input_boolean.kettle_timer_active"
+kettle_timer = "timer.kettle_auto_switch_off"
+kettle_threshold = "binary_sensor.kettle_power_threshold"
 
 # Asterisk:
 asterisk_host = secrets.asterisk_host  # IP Address of Asterisk Server
@@ -184,8 +193,9 @@ next_sunset = "sensor.nextsunset"
 
 # Remote control functions:
 lounge_remote = "remote.lounge"
-remote_control = { "pioneer_amp": {"location": "lounge", "power_on": "power_on", "power_off": "power_off", "mute": "mute", "volume_up": "vol_up", "volume_down": "vol_down"},
-                   "humax_pvr": {"location": "lounge", "mute": "mute", "power_on": "0"},
+remote_control = {
+                    "pioneer_amp": {"location": "lounge", "power_on": "power_on", "power_off": "power_off", "mute": "mute", "volume_up": "vol_up", "volume_down": "vol_down"},
+                    "humax_pvr": {"location": "lounge", "mute": "mute", "power_on": "0"},
                  }
 
 # Hall power controls:
@@ -193,8 +203,6 @@ huawei_4g_router = "switch.silvercrest01_l1"
 draytek_router = "switch.silvercrest02_l2"
 doorphone_power = "switch.silvercrest01_l3"
 
-kettle_timer = "timer.kettle_auto_switch_off"
-kettle_threshold = "binary_sensor.kettle_power_threshold"
 
 # Calendar Stuff:
 #vacation_max = secrets.vacation_max
@@ -212,15 +220,14 @@ work_carpark_zone = secrets.work_carpark_zone
 person_detection_switch = "input_boolean.person_detection_frontdoor"
 
 # Ford Pass
-car_alarm = "sensor.fordpass_alarm"
+#car_alarm = "sensor.fordpass_alarm"
 car_lock = "lock.fordpass_doorlock"
-car_battery = "sensor.fordpass_battery"
 car_messages = "sensor.fordpass_messages"
 car_ignition_status = "sensor.fordpass_ignitionstatus"
 car_alarm_status = "sensor.fordpass_alarm"
 car_refresh_button = "input_button.refresh_ford_pass_status"
 car_tracker = secrets.car_tracker
-car_refresh = "fordpass/refresh_status"
+car_refresh = "fordpass/poll_api"   #"fordpass/refresh_status"
 car_distance_to_empty = "sensor.fordpass_distance_to_empty"
 car_window_position = "sensor.fordpass_windowposition"
 car_door_status = "sensor.fordpass_doorstatus"
@@ -234,7 +241,20 @@ fordpass_tyre_pressure_rear_right = "sensor.fordpass_tyre_pressure_rear_right"
 fordpass_tyre_pressure_rear_left = "sensor.fordpass_tyre_pressure_rear_left"
 fordpass_tyre_pressure_front_recommended = 2.4
 fordpass_tyre_pressure_rear_recommended = 2.4
-
+car_home_locations = secrets.car_home_locations
+fordpass_car_direction = "sensor.fordpass_compass_direction"
+fordpass_deep_sleep = "sensor.fordpass_deepsleep"
+fordpass_outside_temp = "sensor.fordpass_outsidetemp"
+fordpass_battery_voltage = "sensor.fordpass_battery_voltage"
+fordpass_battery_level = "sensor.fordpass_battery"
+fordpass_distance_to_empty = "sensor.fordpass_distance_to_empty"
+fordpass_fuel_level = "sensor.fordpass_fuel"
+fordpass_odometer = "sensor.fordpass_odometer"
+fordpass_car_deepsleep_on = "ACTIVE"
+fordpass_car_deepsleep_off = "DISABLED"
+fordpass_alarm_armed = "ARMED"
+fordpass_alarm_disarmed = "DISARMED"
+    
 max_phone_bluetooth = secrets.max_phone_bluetooth
 diskstation_id = "switch.b3_diskstation01"
 
