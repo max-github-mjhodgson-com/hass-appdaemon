@@ -220,8 +220,7 @@ work_carpark_zone = secrets.work_carpark_zone
 person_detection_switch = "input_boolean.person_detection_frontdoor"
 
 # Ford Pass
-#car_alarm = "sensor.fordpass_alarm"
-car_lock = "lock.fordpass_doorlock"
+fordpass_car_lock = "lock.fordpass_doorlock"
 car_messages = "sensor.fordpass_messages"
 car_ignition_status = "sensor.fordpass_ignitionstatus"
 car_alarm_status = "sensor.fordpass_alarm"
@@ -252,7 +251,7 @@ fordpass_fuel_level = "sensor.fordpass_fuel"
 fordpass_odometer = "sensor.fordpass_odometer"
 fordpass_car_deepsleep_on = "ACTIVE"
 fordpass_car_deepsleep_off = "DISABLED"
-fordpass_alarm_armed = "ARMED"
+fordpass_alarm_armed = ["ARMED", "PREARMED"]
 fordpass_alarm_disarmed = "DISARMED"
     
 max_phone_bluetooth = secrets.max_phone_bluetooth
