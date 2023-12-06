@@ -11,7 +11,7 @@ import appdaemon.plugins.hass.hassapi as hass
 import globals_module as globals
 
 from datetime import datetime
-from geopy.geocoders import Nominatim
+
 
 class FunctionLibrary(hass.Hass):
 
