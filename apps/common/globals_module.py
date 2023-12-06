@@ -395,6 +395,10 @@ android_tv_app_details =    {
                                 },
                             }
 
+# Weather:
+
+wind_bearing = "sensor.pirateweather_wind_bearing"
+wind_direction_sensor = "sensor.pirateweather_wind_direction"
 
 class Globals(hass.Hass):
     def initialize(self):

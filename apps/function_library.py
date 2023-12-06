@@ -11,6 +11,7 @@ import appdaemon.plugins.hass.hassapi as hass
 import globals_module as globals
 
 from datetime import datetime
+from geopy.geocoders import Nominatim
 
 class FunctionLibrary(hass.Hass):
 
@@ -30,7 +31,7 @@ class FunctionLibrary(hass.Hass):
   def is_car_at_home(self):
     where_is_car = self.get_state(globals.car_tracker)
     #self.log(where_is_car)
-    if where_is_car == "Home" or where_is_car == "Home_b":
+    if where_is_car in globals.car_home_locations:
       return 0
     else:
       return 1
@@ -80,3 +81,13 @@ class FunctionLibrary(hass.Hass):
   def turn_off_alert(self, alert_entity_id):
     self.log("Turn off alert: " + str(alert_entity_id))
     self.call_service("alert/turn_off", alert_entity_id)
+
+  def degrees_to_cardinal(self, d):
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    x = int((d/22.5)+.5)
+    return dirs[x % 16]
+
+  def get_wind_direction(self):
+    wind_direction = self.degrees_to_cardinal(int(self.get_state(globals.wind_bearing)))
+    return wind_direction
