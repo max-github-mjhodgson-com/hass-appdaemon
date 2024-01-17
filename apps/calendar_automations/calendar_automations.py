@@ -140,5 +140,5 @@ class Calendar_Automations(hass.Hass):
     if calendar_status == "on":
       event_in_progress = self.get_state(calendar_name, attribute = "message")
       if event_in_progress.lower() == calendar_event_title.lower():
-        return "on"
+        return_code = "on"
     return return_code
