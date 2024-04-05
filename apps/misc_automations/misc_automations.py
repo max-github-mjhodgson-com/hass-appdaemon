@@ -34,20 +34,17 @@ class MiscAutomations(hass.Hass):
     self.listen_state(self.on_wind_direction_change, globals.wind_bearing)
 
     # Event Monitors:
-    self.listen_event(self.on_telegram_text_received, entity_id = "input_text.telegram_message", domain = "input_text")
+    self.listen_event(self.on_telegram_text_received, entity_id = globals.telegram_input_text_message, domain = "input_text")
 
 
   ###############################################################################################################
   # Callback functions:
   ###############################################################################################################
   def on_telegram_text_received(self, event_name, data, kwargs):
-    #self.log("Event name: " + str(event_name))
-    #self.log("Data: " + str(data))
     if event_name == "call_service":
-      self.log("****************** Input text changed *******************************")
-      text = data.get("service_data", {}).get("value")
-      self.log("Text: " + text)
-      self.call_service(globals.max_telegram, title = "HA Web frontend message.", message = text)
+      text_entity_id, text_contents = self.function_library.input_text_event(data["service_data"])
+      if text_entity_id == globals.telegram_input_text_message:
+        self.call_service(globals.max_telegram, title = "HA Web frontend message.", message = text_contents)
 
   def on_weather_change(self, entity, attribute, old, new, kwargs):
     if old not in ["unknown", "unavailable"]:
@@ -60,13 +57,13 @@ class MiscAutomations(hass.Hass):
       distance_in_miles = float(new) * 0.62137119
       if distance_in_miles < 30:
         self.log("Thunderstorm detected nearby.")
-        if self.get_state(phone_app_dnd)  != "off":
+        if self.get_state(phone_app_dnd) != "off":
           self.call_service(globals.max_app, title = "Thunderstorm nearby.",\
                                              message = "There is a thunderstorm " + str(distance_in_miles) + " miles away.",\
                                              data = {"channel": globals.weather_channel,\
                                                      "media_stream": "alarm_stream",\
                                                      "tts_text": "There is a thunderstorm nearby.",\
-                                                    })\
+                                                    })
     
 
   def run_at_midnight_tasks(self, cb_args):
@@ -84,9 +81,9 @@ class MiscAutomations(hass.Hass):
     working_day_tomorrow_sensor = "sensor.working_day_tomorrow"
     current_date = date.today()
     current_day = date.today().weekday()
-    self.log("Day: " + str(current_day))
+    #self.log("Day: " + str(current_day))
     #today_state = self.get_state(working_day_today_sensor)
-    self.log("today_state: " + str(today_state))
+    #self.log("today_state: " + str(today_state))
     #tomorrow_state = self.get_state(working_day_tomorrow_sensor)
     with open('/config/appdaemon/apps/misc_automations/non_working_days.csv') as csv_file:
       working_day_reader = csv.reader(csv_file, delimiter = ',')
@@ -97,7 +94,7 @@ class MiscAutomations(hass.Hass):
         else:
             check_date = date(int(row[3]), int(row[2]), int(row[1]))
             delta = current_date - check_date
-            self.log(delta.days)
+            #self.log(delta.days)
             if delta.days == 0 and current_day < 6:
               self.log("Today is a bank holiday.")
               # Tomorrow sensor on.
