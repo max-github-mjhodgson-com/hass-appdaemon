@@ -270,7 +270,10 @@ class Doorphone(hass.Hass):
   def take_picture(self, camera_location, picture_type, picture_caption):
     self.log("Take picture: " + picture_type)
     timed_snapshot_filename, snapshot_filename = self.cctv_library.get_picture_from_frigate(self.camera_location, picture_type)
-    self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = picture_caption)
+    #self.call_service("telegram_bot/send_photo", file = snapshot_filename, caption = picture_caption)
+    self.cctv_library.get_picture_from_frigate("front_doorbell", picture_type)
+    self.call_service("telegram_bot/send_photo", target = globals.telegram_chat_id, caption = "Front Door", file = snapshot_filename)
+
 
   def reset_doorbell_pressed_flag(self, event_name, data, kwargs):
     self.log("Doorbell Pressed Reset Flag.")
