@@ -125,7 +125,7 @@ class Cctv(hass.Hass):
         if front_door_detection_switch_status == "on":
           self.log("Detection switch status (end image): " + str(front_door_detection_switch_status))
 
-          self.call_service("telegram_bot/send_photo", disable_notification = "yes", url = picture_url_end, caption = video_url)
+          #self.call_service("telegram_bot/send_photo", disable_notification = "yes", url = picture_url_end, caption = video_url)
           #self.call_service("telegram_bot/send_video", disable_notification = "yes", timeout = "yes", url = video_url, caption = "Person at front (video clip).")
           self.call_service(globals.max_app, title = "Doorphone Alert (New) end image",\
                                              message = "Person at Front Door",\
@@ -179,7 +179,8 @@ class Cctv(hass.Hass):
     img_data = requests.get(image_url).content
     with open(image_filename, 'wb') as handler:
       handler.write(img_data)
-      handler.close()
+      handler.close
+      
 
   def send_an_alert(self, **kwargs):
     #self.log("Send an alert.")
@@ -196,6 +197,6 @@ class Cctv(hass.Hass):
       self.log("Detected object: " + str(object))
 
   def camera_object_detect_on_off(self, camera_name, detect_state):
-    self.log("Switching camera object detection: " + str(detect_state) + "for camera: " + str(camera_name))
+    self.log("Switching camera object detection: " + str(detect_state) + " for camera: " + str(camera_name))
     frigate_camera_id = "frigate/" + camera_name + "/detect/set"
     self.mqtt.mqtt_publish(frigate_camera_id, detect_state.upper(), namespace = "mqtt")
