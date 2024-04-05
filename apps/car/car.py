@@ -46,6 +46,10 @@ class Car(hass.Hass):
     self.ignition_status = self.get_state(globals.car_ignition_status)
     if self.ignition_status != "unavailable":
       self.log("Initial ignition status: " + self.ignition_status)
+      if self.ignition_status == "RUN":
+        self.enable_short_timer()
+      else:
+        self.enable_long_timer()
     else:
       self.log(self.data_unavailable_message)
   
@@ -66,18 +70,18 @@ class Car(hass.Hass):
       self.log("Initial alarm status: " + self.alarm_status)
     else:
       self.log(self.data_unavailable_message)
-    if self.alarm_status in globals.fordpass_alarm_armed and self.window_status == "Closed":
-       self.log("Run long term timer.")
-       self.enable_long_timer()
-    elif self.alarm_status == globals.fordpass_alarm_disarmed:
-       self.log("Short term timer.")
-       self.enable_short_timer()
+    #if self.alarm_status in globals.fordpass_alarm_armed and self.window_status == "Closed":
+    #   self.log("Run long term timer.")
+    #   self.enable_long_timer()
+    #elif self.alarm_status == globals.fordpass_alarm_disarmed:
+    #   self.log("Short term timer.")
+    #   self.enable_short_timer()
     
 
     self.battery_status = self.get_state(globals.fordpass_battery_level)
     if self.battery_status != "unavailable":
       #self.log(battery_status)
-      if int(self.battery_status) <= 50:
+      if int(self.battery_status) <= 50 and self.ignition_status == "off":
         self.log("Car battery is low.")
         self.enable_long_timer()
     else:
@@ -148,6 +152,9 @@ class Car(hass.Hass):
     ignition_status = self.get_state(globals.car_ignition_status)
     if ignition_status == "Off":
       self.log("Car locked.")
+      lock_type = self.get_lock_type()
+      self.log("Lock type: " + str(lock_type))
+      self.set_state(globals.fordpass_door_lock_type, state = lock_type, attributes = {"friendly_name": "Door Lock Type"})
     elif ignition_status == "Run":
       self.log("Car auto-locked.")
 
@@ -157,7 +164,7 @@ class Car(hass.Hass):
     self.log("Window status: " + str(window_status))
     if old in globals.fordpass_alarm_armed and new == globals.fordpass_alarm_disarmed:
       self.log("Car alarm is disarmed.")
-      self.enable_short_timer()
+      #self.enable_short_timer()
       car_kit_connected = self.get_state(globals.max_phone_bluetooth, attribute = "connected_paired_devices")
       self.log("Car kit: " + str(car_kit_connected))
       if globals.max_car_kit in car_kit_connected:
@@ -168,15 +175,15 @@ class Car(hass.Hass):
                                            message = "TTS",\
                                            data = {"media_stream": "alarm_stream_max",\
                                                    "tts_text": "Car alarm has been disarmed."})
-    if new in globals.fordpass_alarm_armed : # and old == "UNSET":
-       self.log("Car alarm is ARMED.")
-       # and windows are closed?
-       if window_status == "Closed":
-         self.log("Windows are closed.")
-         self.enable_long_timer()
-       elif window_status == "Open":
-         self.log("Windows are still open.")
-         self.enable_short_timer()
+    #if new in globals.fordpass_alarm_armed : # and old == "UNSET":
+    #   self.log("Car alarm is ARMED.")
+    #   # and windows are closed?
+    #   if window_status == "Closed":
+    #     self.log("Windows are closed.")
+    #     self.enable_long_timer()
+    #   elif window_status == "Open":
+    #     self.log("Windows are still open.")
+    #     self.enable_short_timer()
 
   def on_ignition_change(self, entity, attribute, old, new, kwargs):
     if old != "unavailable" or new != "unavailable":
@@ -193,16 +200,18 @@ class Car(hass.Hass):
       # Compare current location to test if car is moving.
 
   def on_battery_state_changed(self, entity, attribute, old, new, kwargs):
-    if old != "unavailable" or new != "unavailable":
+    if old == "unavailable" or new == "unavailable":
+      self.log("Battery data unavailable.")
+    else:
       if int(new) <= 50:
         self.log("Car battery is low.")
         ignition_status = self.get_state(globals.car_ignition_status)
-        if ignition_status == "Off":
+        if ignition_status == "off":
           self.enable_long_timer()
-        self.call_service(globals.max_app,  title = "Car battery is low.",\
-                                            message = "TTS",\
-                                            data = {"media_stream": "alarm_stream",\
-                                                    "tts_text": "Car battery is low."})
+          self.call_service(globals.max_app,  title = "Car battery is low.",\
+                                              message = "TTS",\
+                                              data = { "media_stream": "alarm_stream",\
+                                                       "tts_text": "Car battery is low."})
 
   def on_button_refresh_status_pressed(self, entity, attribute, old, new, kwargs):
     self.log("Refresh pressed.")
@@ -371,6 +380,9 @@ class Car(hass.Hass):
       self.log("Car position last change: " + str(self.car_position_last_change))
       #self.car_direction - self.get_state(globals.fordpass_car_direction)
       #self.log("Car direction: " + str(self.car_direction))
+      lock_type = self.get_lock_type()
+      self.log("Lock type: " + str(lock_type))
+      self.set_state(globals.fordpass_door_lock_type, state = lock_type, attributes = {"friendly_name": "Door Lock Type"})
     else:
       self.log("Car data unavailable.")
     self.log("=" * 60)
@@ -468,6 +480,17 @@ class Car(hass.Hass):
 
   def get_car_address(self):
     current_location = (self.get_state(globals.car_tracker, attribute = "latitude"), self.get_state(globals.car_tracker, attribute = "longitude"))
-    geolocator = Nominatim(user_agent = "appdaemon")
-    car_address = geolocator.reverse(current_location)
+    try:
+      geolocator = Nominatim(user_agent = "appdaemon")
+    except Exception:
+      self.log("Unable to get street address.")
+      car_address = "Unable to get street address."
+    finally:
+      car_address = geolocator.reverse(current_location)
     return car_address
+
+  def get_lock_type(self):
+    car_metrics_door_locks = self.get_state("sensor.fordpass_metrics", attribute = "doorLockStatus")
+    lock_type_extract = car_metrics_door_locks[0]
+    lock_type = lock_type_extract["value"]
+    return lock_type
