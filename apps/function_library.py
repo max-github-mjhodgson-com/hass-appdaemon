@@ -61,9 +61,9 @@ class FunctionLibrary(hass.Hass):
       working_day_return_code = 0
       working_day="on"
     friendly_name = self.get_state("person." + str(person), attribute = "friendly_name")
-    self.log("Friendly name: " + str(friendly_name))
-    self.log("Person: " + str(person))
-    self.set_state("sensor.working_day_" + str(person), state=working_day, attributes = {"friendly_name": "Working day for "+ str(friendly_name), "detail": None})
+    #self.log("Friendly name: " + str(friendly_name))
+    #self.log("Person: " + str(person))
+    self.set_state(globals.secrets.working_day_template + str(person), state = working_day, attributes = {"friendly_name": "Working day for "+ str(friendly_name), "detail": None})
     return working_day_return_code, working_day
 
   def is_the_traffic_to_work_heavy(self):
@@ -91,3 +91,19 @@ class FunctionLibrary(hass.Hass):
   def get_wind_direction(self):
     wind_direction = self.degrees_to_cardinal(int(self.get_state(globals.wind_bearing)))
     return wind_direction
+
+  def input_text_event(self, event_service_data):
+    text_entity_id = event_service_data["entity_id"]
+    text_contents = event_service_data["value"]
+    return text_entity_id, text_contents
+
+  # Code placeholder
+  def get_workdays_for_persons(self, persons):
+    self.log(persons)
+    for person in who_is_at_home:
+      self.log(person)
+      person_and_name = person.split(".")
+      name_only = person_and_name[1]
+      self.log(name_only)
+      workday_person = self.function_library.is_it_a_work_day_today(name_only)
+      self.log(workday_person)
