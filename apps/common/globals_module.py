@@ -11,7 +11,10 @@ mobile_app_users = secrets.mobile_app_users
 person_max = secrets.person_max
 max_phone = secrets.max_phone
 max_phone_tracker = secrets.max_phone
-
+user01_automation_library = secrets.user01_automation_library
+working_day_template = secrets.working_day_template
+working_day_max = secrets.working_day_template + "max"
+telegram_chat_id = secrets.telegram_chat_id
 log_partition_line_length = 40
 
 # Main URL
@@ -177,6 +180,13 @@ lounge_lamp = "light.lounge_lamp"
 dining_lamp = "light.dining_lamps"
 christmas_tree = "switch.christmas_tree"
 christmas_wall_lights = "switch.christmas_wall_lights"
+lounge_string_light = "light.string_01"
+lounge_string_light_timer = "timer.lounge_strip_light_timeout"
+lounge_string_light_duration = "600"
+lounge_light_sensor = "sensor.ep1_lounge_illuminance"
+lounge_light_level = 0.6
+lounge_mmwave_sensor = "binary_sensor.ep1_lounge_mmwave"
+lounge_occupancy_sensor = "binary_sensor.ep1_lounge_occupancy"
 
 # Lounge Lamp Select Names
 lounge_lamp_select_name = "Lounge Lamp" 
@@ -195,7 +205,7 @@ next_sunset = "sensor.nextsunset"
 lounge_remote = "remote.lounge"
 remote_control = {
                     "pioneer_amp": {"location": "lounge", "power_on": "power_on", "power_off": "power_off", "mute": "mute", "volume_up": "vol_up", "volume_down": "vol_down"},
-                    "humax_pvr": {"location": "lounge", "mute": "mute", "power_on": "0"},
+                    "humax_pvr": {"location": "lounge", "mute": "mute", "power_on": "button_0"},
                  }
 
 # Hall power controls:
@@ -234,6 +244,7 @@ max_car_kit = secrets.max_car_kit
 fordpass_refresh_counter = "counter.ford_pass_refresh"
 fordpass_refresh_disable = "input_boolean.fordpass_refresh_disable"
 fordpass_refresh_status = "input_select.fordpass_car_refresh_interval_timer"
+fordpass_tyre_state = "sensor.fordpass_tirepressure"
 fordpass_tyre_pressure_front_right = "sensor.fordpass_tyre_pressure_front_right"
 fordpass_tyre_pressure_front_left = "sensor.fordpass_tyre_pressure_front_left"
 fordpass_tyre_pressure_rear_right = "sensor.fordpass_tyre_pressure_rear_right"
@@ -253,6 +264,7 @@ fordpass_car_deepsleep_on = "ACTIVE"
 fordpass_car_deepsleep_off = "DISABLED"
 fordpass_alarm_armed = ["ARMED", "PREARMED"]
 fordpass_alarm_disarmed = "DISARMED"
+fordpass_door_lock_type = "sensor.fordpass_door_lock_type"
     
 max_phone_bluetooth = secrets.max_phone_bluetooth
 diskstation_id = "switch.b3_diskstation01"
@@ -260,10 +272,11 @@ diskstation_id = "switch.b3_diskstation01"
 # Zones
 pbm_zone = secrets.pbm_zone
 
-weather = "weather.accuweather"
-has_it_rained_today_switch = "input_boolean.has_it_been_raining"
-
+# Movement and Occupancy sensors:
 house_movement_sensors = "group.house_movement_sensors"
+lounge_mmwave = "binary_sensor.ep1_lounge_mmwave"
+lounge_pir = ""
+lounge_occupancy = ""
 
 # Network:
 network_vpn_ping_status = "binary_sensor.vpn_remote_endpoint_b"
@@ -395,10 +408,25 @@ android_tv_app_details =    {
                                 },
                             }
 
-# Weather:
+notification_lights = {
+    "Lounge": "light.string_01",
+    "Main Bedroom": "",
+    "Office": "",
+    "Kitchen": "",
+    "Garage": "",
+}
 
+# Weather:
+weather = "weather.accuweather"
+has_it_rained_today_switch = "input_boolean.has_it_been_raining"
 wind_bearing = "sensor.pirateweather_wind_bearing"
 wind_direction_sensor = "sensor.pirateweather_wind_direction"
+
+tranporter_session_power_flag = "sensor.transporter_weekend_power"
+tranporter_session_power_flag_name = "Transporter powered up already this home session"
+
+telegram_input_text_message = "input_text.telegram_message"
+org_bl_input_text = secrets.org_bl_input_text
 
 class Globals(hass.Hass):
     def initialize(self):
