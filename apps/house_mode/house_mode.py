@@ -51,15 +51,15 @@ class House_Mode(hass.Hass):
       self.select_option(globals.house_mode_selector, "Out")
 
     
-    self.people_at_home = []
-    self.get_people_at_home()
-    self.log("People at home: " + str(self.people_at_home))
-    if self.people_at_home == []:
-      self.log("Nobody is at home.")
-      self.select_option(globals.house_mode_selector, "Out")
-    else:
-      self.log("Someone is at home.")
-      self.select_option(globals.house_mode_selector, "Home")
+    #self.people_at_home = []
+    self.log(self.get_people_at_home())
+    #self.log("People at home: " + str(self.people_at_home))
+    #if self.people_at_home == []:
+    #  self.log("Nobody is at home.")
+    #  self.select_option(globals.house_mode_selector, "Out")
+    #else:
+    #  self.log("Someone is at home.")
+    #  self.select_option(globals.house_mode_selector, "Home")
     #  self.log("Max is at home.")
     #  max_automations_library.run_arrival_automations_for_max()
 
@@ -185,10 +185,14 @@ class House_Mode(hass.Hass):
     self.select_option(globals.house_mode_selector, "Pre-departure")
 
   def on_who_has_left_or_entered(self, entity, attribute, old, new, kwargs):
+    person_and_name = entity.split(".")
+    name_only = person_and_name[1]
+    workday_person = self.function_library.is_it_a_work_day_today(name_only)
+    friendly_name = self.get_state(entity, attribute = "friendly_name")
     if old == "home":
-      self.log(str(entity) + " has left.")
+      self.log(str(friendly_name) + " has left.")
     if new == "home":
-      self.log(str(entity) + " has entered.")
+      self.log(str(friendly_name) + " has entered.")
 
   def on_change_house_mode_cb(self, cb_args):
     house_mode_to_change_to = cb_args["house_mode"]
@@ -232,8 +236,11 @@ class House_Mode(hass.Hass):
     self.call_service("switch/turn_off", entity_id = globals.tv_power)
     self.turn_on(globals.person_detection_switch)
     self.max_automations_library.lock_laptop()
-    #self.squeezebox_control_library.power_off_squeezebox(globals.squeezebox_transporter_power)
+    self.squeezebox_control_library.power_off_squeezebox(globals.squeezebox_transporter_power)
 
+    # Reset Transporter power flag:
+    self.set_state(globals.tranporter_session_power_flag, state="off", attributes = {"friendly_name": globals.tranporter_session_power_flag_name})
+    
     self.select_option(globals.lounge_lamps_input_select, globals.dining_lamp)
     # Is it dark?:
     dark_state = self.get_state(globals.dark_sensor)
@@ -250,8 +257,9 @@ class House_Mode(hass.Hass):
 #     self.turn_off(globals.power_aiwa)
 
   def get_people_at_home(self):
+    self.people_at_home = []
     persons_at_home = self.get_state("group.persons", attribute = "entity_id")
-    #self.log("Persons at home: " + str(persons_at_home))
+    #self.log("Persons in home group home: " + str(persons_at_home))
     for person_at_home in persons_at_home:
       #self.log(person_at_home)
       home_status = self.get_state(person_at_home)
@@ -259,6 +267,6 @@ class House_Mode(hass.Hass):
       if home_status == "home":
         #self.log("Person element: " + person_at_home)
         self.people_at_home.append(person_at_home)
-    #self.log("People at home: " + str(people_at_home))
+    #self.log("People who are at home: " + str(self.people_at_home))
     return self.people_at_home
 
