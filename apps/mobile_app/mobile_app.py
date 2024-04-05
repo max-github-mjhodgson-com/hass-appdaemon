@@ -41,7 +41,8 @@ class Mobile_App(hass.Hass):
     # None.
 
     # Event Monitors
-    self.listen_event(self.on_mobile_app_click_event, event="mobile_app_notification_action")
+    self.listen_event(self.on_mobile_app_click_event, event = "mobile_app_notification_action")
+    self.listen_event(self.on_notification_received, event = "mobile_app_notification_received")
 
   ###############################################################################################################
   # Callback functions:
@@ -62,6 +63,19 @@ class Mobile_App(hass.Hass):
       case globals.android_app_action_open_garage_door_in_5_minutes:
         self.log("Open garage door in 5 minutes.")
         self.set_value(globals.garage_input_number_garage_open_timer, 5)
+      case globals.android_app_click_action_confirm_location_notification:
+        self.log("Location notification confirmed.")
+        #self.log("Event name: " + str(event_name))
+        #self.log("Data: " + str(data))
+        self.log("Message: " + str(data.get("message")))
+        self.log("Tag: " + str(data.get("tag")))
+        #self.log(data.keys())
+
+
+  def on_notification_received(self, event_name, data, kwargs):
+    self.log("Notification received.")
+    self.log("Event name: " + str(event_name))
+    self.log("Data: " + str(data))
 
 
 ###############################################################################################################
