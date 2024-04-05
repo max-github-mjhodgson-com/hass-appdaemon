@@ -30,11 +30,13 @@ class Kitchen(hass.Hass):
 
     self.kettle_gone_to_zero_handler = 0
     self.kettle_message_sent = 0
+    self.dishwasher_trigger = 0
 
     # State monitors.
     self.kettle_power_on = self.listen_state(self.on_kettle_on, globals.kettle, new = "on", old = "off")
     self.kettle_power_off = self.listen_state(self.on_kettle_off, globals.kettle, new = "off", old = "on")
     self.kettle_power_threshold_handler = self.listen_state(self.on_kettle_power_threshold_reached, globals.kettle_threshold, new = "on", old = "off", duration = "10")
+    self.dishwash_status_change_handler = self.listen_state(self.on_dishwasher_status_change, "sensor.teckin07_instant_power", duration = 10)
 
     # Event monitors.
     self.kettle_power_timer_started = self.listen_event(self.on_kettle_timer_start, "timer.started", entity_id = globals.kettle_timer )
@@ -103,6 +105,37 @@ class Kitchen(hass.Hass):
   def on_button_press_turn_kettle_on(self, entity, attribute, old, new, kwargs):
     self.log("Kettle Button Pressed.")
     self.turn_on(globals.kettle)
+
+  def on_dishwasher_status_change(self, entity, attribute, old, new, kwargs):
+    dishwasher_status_select = "input_select.dishwasher_status"
+    
+    if old != "unavailable" and new != "unavailable":
+      self.log("Dishwasher status change.")
+      self.log("Dishwasher new: " + str(new))
+      self.log("Dishwasher old: " + str(old))
+      current_dishwasher_state = self.get_state(dishwasher_status_select)
+      match new:
+        case 0:
+          self.log("Dishwasher is off.")
+          self.select_option(dishwasher_status_select, "Off")
+          if old > 0:
+            self.log("Dishwasher has finished.")
+            self.select_option(dishwasher_status_select, "Finished")
+            self.dishwasher_trigger = 0
+        case 1:
+          if old == "0":
+            self.log("Dishwasher is running.")
+            self.select_option(dishwasher_status_select,"Running")
+        case _ if int(new) > 50:
+          self.log("Dishwasher has started.")
+          self.select_option(dishwasher_status_select,"Running")
+          self.dishwasher_trigger = 1
+        case _ if int(new) > 1900:
+          self.log("Dishwasher is running (heating).")
+          self.select_option(dishwasher_status_select,"Running (Heating)")
+          self.dishwasher_trigger = 1
+
+    # Start power > 1900
 
 ###############################################################################################################
 # Other functions:
