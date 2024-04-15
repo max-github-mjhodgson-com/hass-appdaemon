@@ -3,7 +3,7 @@ This is a repo for my Home Assistant Appdaemon Python code.
 I don't use many automations in the Home Assistant Frontend. 99% of my automations are in Appdaemon (due to the complexity).
 All of these are under active development and experimentation.
 
-Areas covered are Grandstream SIP Doorphone, CCTV, House Mode, Garage, Calendar, Kitchen, Mobile App Events and Car (using Fordpass).
+Areas covered are Grandstream SIP Doorphone, CCTV, House Mode, Garage, Calendar, Kitchen, Mobile App Events, Logitech Squeezebox (Networked music player) and Car (using Fordpass).
 
 App Descriptions:
 
