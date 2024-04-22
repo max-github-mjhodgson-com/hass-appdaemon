@@ -80,6 +80,7 @@ front_motion_detection_off_input_number = "input_number.turn_off_person_detectio
 persons_in_zone_count = {front_doorbell: "sensor.garden_person_count"}
 
 # Squeezeboxes:
+squeezebox_power_off_duration = "7200"
 squeezebox_dining = "media_player.dining_room"
 squeezebox_spare_bedroom = "media_player.spare_bedroom"
 squeezebox_transporter = "media_player.transporter"
@@ -208,10 +209,12 @@ remote_control = {
                     "humax_pvr": {"location": "lounge", "mute": "mute", "power_on": "button_0"},
                  }
 
-# Hall power controls:
-huawei_4g_router = "switch.silvercrest01_l1"
-draytek_router = "switch.silvercrest02_l2"
-doorphone_power = "switch.silvercrest01_l3"
+# Network device power controls:
+#huawei_4g_router = "switch.silvercrest01_l1"
+unifi_main_switch_power = "switch.silvercrest02_l1"
+draytek_router_power = "switch.silvercrest02_l2"
+switch_cab_usb_power = "switch.silvercrest02_l3"
+#doorphone_power = "switch.silvercrest01_l3"
 
 
 # Calendar Stuff:
@@ -415,6 +418,10 @@ notification_lights = {
     "Kitchen": "",
     "Garage": "",
 }
+
+# Washing Machine (Miele):
+washing_machine_programmes_end_time = "sensor.washing_machine_finish_at"
+washing_machine_completed = "program_ended"
 
 # Weather:
 weather = "weather.accuweather"

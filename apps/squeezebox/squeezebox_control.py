@@ -21,19 +21,16 @@ class SqueezeboxControl(hass.Hass):
     self.log("=" * 30)
     now = datetime.strftime(self.datetime(), '%H:%M %p, %a %d %b')
     self.log("running at {}.".format(now))
-
-    global sb_power_off_duration
-    sb_power_off_duration = "7200"
  
     sb_transporter_power_status = self.get_state(globals.squeezebox_transporter_power)
     sb_transporter_playing_status = self.get_state(globals.squeezebox_transporter)
     if sb_transporter_power_status == "on" and sb_transporter_playing_status != "playing":
        self.log("Transporter is currently powered ON, but not playing. Starting timer.")
-       self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = sb_power_off_duration)
+       self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = globals.squeezebox_power_off_duration)
 
 
     #self.listen_state(self.squeezebox_started_playing, globals.squeezebox_dining, new = "playing", duration = 1)
-    sb_transporter_powered_off_handler = self.listen_state(self.call_squeezebox_transporter_power_off, globals.squeezebox_transporter, new = "off", duration = sb_power_off_duration) # Transporter power off after 1 hour.
+    sb_transporter_powered_off_handler = self.listen_state(self.call_squeezebox_transporter_power_off, globals.squeezebox_transporter, new = "off", duration = globals.squeezebox_power_off_duration) # Transporter power off after 1 hour.
     sb_transporter_off_after_one_hour_handler = self.listen_state(self.call_squeezebox_transporter_power_off, globals.squeezebox_transporter, new = "off", duration = 3600) # Transporter power off after 1 hour.
     sb_transporter_started_playing_handler = self.listen_state(self.call_squeezebox_transporter_started_playing, globals.squeezebox_transporter, new = "playing", duration = 2)
     sb_transporter_stopped_playing_handler = self.listen_state(self.on_squeezebox_stopped_playing, globals.squeezebox_transporter, new = ["idle", "paused"], old = lambda x: x not in ["unknown", "unavailable"], duration = 600)
@@ -67,7 +64,7 @@ class SqueezeboxControl(hass.Hass):
   def call_squeezebox_transporter_power_off(self, entity, attribute, old, new, kwargs):
      self.log("Transporter has switched off.")
      self.power_off_squeezebox(globals.squeezebox_transporter_power)
-     self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = sb_power_off_duration)
+     self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = globals.squeezebox_power_off_duration)
 
   def call_squeezebox_transporter_started_playing(self, entity, attribute, old, new, kwargs):
     self.log("Transporter has started playing.")
@@ -88,10 +85,10 @@ class SqueezeboxControl(hass.Hass):
   def on_sb_transporter_status_change(self, entity, attribute, old, new, kwargs):
     if new == "on":
       self.log("Transporter Turned ON.")
-      self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = sb_power_off_duration)
+      self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = globals.squeezebox_power_off_duration)
     elif new == "off":
       self.log("Transporter Turn OFF.") 
-      self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = sb_power_off_duration)
+      self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = globals.squeezebox_power_off_duration)
 
   def on_sb_transporter_powered_off(self, entity, attribute, old, new, kwargs):
      if old != "unavailable":
@@ -231,8 +228,8 @@ class SqueezeboxControl(hass.Hass):
   #global squeezebox_friendly_name 
     #squeezebox_friendly_name = "Squeezebox Dining Room"
 
-#self.log("This is a test %s", sb_power_off_duration)
-    #self.log("This is a test 2 %s" % (sb_power_off_duration))
-    #self.log("This is also a test {}".format(sb_power_off_duration))
-    #self.log(f"This is a test 2 {sb_power_off_duration}, wibble")
+#self.log("This is a test %s", globals.squeezebox_power_off_duration)
+    #self.log("This is a test 2 %s" % (globals.squeezebox_power_off_duration))
+    #self.log("This is also a test {}".format(globals.squeezebox_power_off_duration))
+    #self.log(f"This is a test 2 {globals.squeezebox_power_off_duration}, wibble")
 
