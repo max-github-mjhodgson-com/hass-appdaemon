@@ -62,30 +62,27 @@ class Garage(hass.Hass):
 
 
     # State monitors
-    self.on_garage_door_open_handler = self.listen_state(self.on_garage_door_open, globals.garage_door_entity, new = "open", old = "closed")
-    self.on_garage_door_close_handlerhandler = self.listen_state(self.on_garage_door_closed, globals.garage_door_entity, new = "closed", old = "open")
-    self.on_garage_door_power_off_handler = self.listen_state(self.on_garage_door_power_off, globals.garage_door_power_switch, new = "off", old = "on")
-    self.on_garage_door_power_on_handler = self.listen_state(self.on_garage_door_power_on, globals.garage_door_power_switch, new = "on", old = "off")
-    self.garage_motion_sensor_entity = self.get_entity(globals.garage_motion_sensor)
-    self.garage_motion_sensor_entity.listen_state(self.on_motion_detected)
-    self.garage_motion_sensor_entity.listen_state(self.on_motion_detected, new = "on", old = "off")
-    self.garage_motion_sensor_entity.listen_state(self.on_motion_not_detected, new = "off", old = "on") 
-    self.garage_light_on_handler = self.listen_state(self.on_garage_light_on, globals.garage_light_entity, new = "on", old = "off")
-    self.garage_light_off_handler = self.listen_state(self.on_garage_light_off, globals.garage_light_entity, new = "off", old = "on")
-    self.door_auto_close_timer_handler = self.listen_state(self.auto_close_timer_events, "timer.garage_door_auto_close_no_motion")
-    self.listen_for_power_on_garage_door_and_open_button_press_handler = self.listen_state(self.on_button_power_on_and_open_garage, 'input_button.power_on_garage_door_and_open')
+    self.listen_state(self.on_garage_door_open, globals.garage_door_entity, new = "open", old = "closed")
+    self.listen_state(self.on_garage_door_closed, globals.garage_door_entity, new = "closed", old = "open")
+    self.listen_state(self.on_garage_door_power_off, globals.garage_door_power_switch, new = "off", old = "on")
+    self.listen_state(self.on_garage_door_power_on, globals.garage_door_power_switch, new = "on", old = "off")
+    self.listen_state(self.on_motion_detected, globals.garage_motion_sensor, new = "on", old = "off")
+    self.listen_state(self.on_motion_not_detected, globals.garage_motion_sensor, new = "off", old = "on") 
+    self.listen_state(self.on_garage_light_on, globals.garage_light_entity, new = "on", old = "off")
+    self.listen_state(self.on_garage_light_off, globals.garage_light_entity, new = "off", old = "on")
+    self.listen_state(self.auto_close_timer_events, "timer.garage_door_auto_close_no_motion")
+    self.listen_state(self.on_button_power_on_and_open_garage, 'input_button.power_on_garage_door_and_open')
     #self.listen_for_power_on_garage_door_and_open_button_press_handler = self.listen_state(self.button_test_press, 'input_button.power_on_garage_door_and_open')
-    self.listen_for_close_garage_door_and_power_off_button_press_handler = self.listen_state(self.on_button_close_garage_and_power_off, 'input_button.close_garage_door_and_power_off')
+    self.listen_state(self.on_button_close_garage_and_power_off, 'input_button.close_garage_door_and_power_off')
 
-    
     # Event Monitors
-    self.power_timer_finished_handler = self.listen_event(self.on_garage_door_power_timer_finished, "timer.finished", entity_id = globals.garage_door_power_timer )
-    self.light_timer_finished_handler = self.listen_event(self.on_garage_light_timer_finished, "timer.finished", entity_id = globals.garage_light_timer ) 
+    self.listen_event(self.on_garage_door_power_timer_finished, "timer.finished", entity_id = globals.garage_door_power_timer )
+    self.listen_event(self.on_garage_light_timer_finished, "timer.finished", entity_id = globals.garage_light_timer ) 
     self.listen_event(self.on_garage_door_no_motion_timer_finished, "timer.finished", entity_id = globals.garage_door_no_motion_timer )
     #self.listen_for_garage_power_on_and_open_event_handler = self.listen_event(self.on_power_on_and_open_garage, "power_on_garage_door_and_open")
     #self.listen_for_garage_door_close_and_power_off_event_handler = self.listen_event(self.on_close_garage_and_power_off, "close_garage_door_and_power_off")
-    self.listen_for_garage_door_open_air_gap_handler = self.listen_event(self.on_open_air_gap, "garage_open_air_gap")
-    self.listen_for_test_handler = self.listen_event(self.on_test_event, "garage_test_event")
+    self.listen_event(self.on_open_air_gap, "garage_open_air_gap")
+    self.listen_event(self.on_test_event, "garage_test_event")
 
   ###############################################################################################################
   # Callback functions:
@@ -94,7 +91,6 @@ class Garage(hass.Hass):
   def on_garage_door_open(self, entity, attribute, old, new, kwargs):
     self.log("Garage Door Opened.")
     self.log("Cancelling 'open time' listener.")
-    #self.log(timer_running(self.garage_open_time_handler))
     try:
       self.cancel_listen_event(self.garage_open_time_handler)
     except Exception:
@@ -186,9 +182,7 @@ class Garage(hass.Hass):
   def on_garage_door_power_on(self, entity, attribute, old, new, kwargs):
     self.log("Garage Door Powered ON.")
     house_mode = self.get_state(globals.house_mode_selector)
-    #self.log(house_mode)
     if self.function_library.is_house_occupied() == 0:  # If house is occupied, don't send a Telegram message.
-    #  if house_mode == "Just Arrived":
       self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage Door Power Switched ON.")
     self.call_service(globals.max_app, title = "Garage Alert",\
                                        message = "Garage Door Power Switched ON",\
@@ -275,48 +269,46 @@ class Garage(hass.Hass):
 
   # Motion Detected:
   def on_motion_detected(self, entity, attribute, old, new, kwargs):
-    self.log("Garage Motion Detected.")
-    dark_state = self.get_state('binary_sensor.dark')
-    door_state = self.get_state(globals.garage_door_entity)
-    anyone_home = self.function_library.is_house_occupied()
-    #sun_pos = self.get_state("sun.sun")
-    #self.log(sun_pos)
-    if door_state == "closed":
-      self.log("Garage door is CLOSED.")
-      house_mode = self.get_state(globals.house_mode_selector)
-      if house_mode == "Just Arrived":
-        self.log("Just arrived, switching on garage door power.")
-        self.switch_on_garage_door()
-      if anyone_home == 1:
-        light_level = self.get_state(globals.garage_light_sensor)
-        if str(light_level) != "unavailable":
-          if int(float(light_level)) < 200:
-            self.garage_light_on()
-            self.call_service("timer/start", entity_id = globals.garage_light_timer, duration = globals.garage_light_off_timer_duration)
-          else:
-            self.log("Light level high.")
-        power_state = self.get_state(globals.garage_door_power_switch)
-        if power_state == "On":
-          self.log("Garage door power is on, extending timer.")
-          self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "600")
-      else:
-        self.log("Garage PIR Sensor Actvated.")
-        self.call_service(globals.max_telegram, title = "Garage Alert", message = "PIR Sensor detected motion in the garage.")
-    elif door_state == "open":
-      self.log("Garage door is OPEN.")
-      close_timer_state = "null"
-      if anyone_home == 1:
-        self.log("Reset close timer.")
-        close_timer_state = self.get_state(globals.garage_door_no_motion_timer)
-      #self.log(close_timer_state)
-      if close_timer_state != "paused":
-        self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = "3600")
-    if door_state == "open" and dark_state == 'on':
-      if anyone_home == 1:
-        self.log("Door OPEN and it's dark (and someone is at home).")
-        self.garage_light_on()
-      else:
-        self.log("Door OPEN and it's dark (and nobody is at home).")
+    if old != "unavailable" and new != "unavailable":
+      self.log("Garage Motion Detected.")
+      dark_state = self.get_state('binary_sensor.dark')
+      door_state = self.get_state(globals.garage_door_entity)
+      anyone_home = self.function_library.is_house_occupied()
+      if door_state == "closed":
+        self.log("Garage door is CLOSED.")
+        house_mode = self.get_state(globals.house_mode_selector)
+        if house_mode == "Just Arrived":
+          self.log("Just arrived, switching on garage door power.")
+          self.switch_on_garage_door()
+        if anyone_home == 1:
+          light_level = self.get_state(globals.garage_light_sensor)
+          if str(light_level) != "unavailable":
+            if int(float(light_level)) < 200:
+              self.garage_light_on()
+              self.call_service("timer/start", entity_id = globals.garage_light_timer, duration = globals.garage_light_off_timer_duration)
+            else:
+              self.log("Light level high.")
+          power_state = self.get_state(globals.garage_door_power_switch)
+          if power_state == "On":
+            self.log("Garage door power is on, extending timer.")
+            self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "600")
+        else:
+          self.log("Garage PIR Sensor Actvated.")
+          self.call_service(globals.max_telegram, title = "Garage Alert", message = "PIR Sensor detected motion in the garage.")
+      elif door_state == "open":
+        self.log("Garage door is OPEN.")
+        close_timer_state = "null"
+        if anyone_home == 1:
+          self.log("Reset close timer.")
+          close_timer_state = self.get_state(globals.garage_door_no_motion_timer)
+        if close_timer_state != "paused":
+          self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = "3600")
+      if door_state == "open" and dark_state == 'on':
+        if anyone_home == 1:
+          self.log("Door OPEN and it's dark (and someone is at home).")
+          self.garage_light_on()
+        else:
+          self.log("Door OPEN and it's dark (and nobody is at home).")
   
   # Motion has ceased to be detected.
   def on_motion_not_detected(self, entity, attribute, old, new, kwargs):
