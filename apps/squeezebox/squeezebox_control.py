@@ -28,7 +28,7 @@ class SqueezeboxControl(hass.Hass):
        self.log("Transporter is currently powered ON, but not playing. Starting timer.")
        self.call_service("timer/start", entity_id = globals.squeezebox_transporter_timer, duration = globals.squeezebox_power_off_duration)
 
-
+    self.log(self.find_remote_amp("pioneer_amp"))
     #self.listen_state(self.squeezebox_started_playing, globals.squeezebox_dining, new = "playing", duration = 1)
     sb_transporter_powered_off_handler = self.listen_state(self.call_squeezebox_transporter_power_off, globals.squeezebox_transporter, new = "off", duration = globals.squeezebox_power_off_duration) # Transporter power off after 1 hour.
     sb_transporter_off_after_one_hour_handler = self.listen_state(self.call_squeezebox_transporter_power_off, globals.squeezebox_transporter, new = "off", duration = 3600) # Transporter power off after 1 hour.
@@ -94,6 +94,7 @@ class SqueezeboxControl(hass.Hass):
      if old != "unavailable":
       self.log("Transporter Powered OFF.")
       self.call_service("timer/cancel", entity_id = globals.squeezebox_transporter_timer)
+      self.switch_off_pioneer_amp()
 
   def call_sb_transporter_power_timer_completed(self, event, data, kwargs):
      self.log("Timer completed.")
@@ -107,7 +108,7 @@ class SqueezeboxControl(hass.Hass):
     self.select_input_on_pioneer_amp(globals.squeezebox_dining)
 
   def on_sb_activity(self, entity, attribute, old, new, kwargs):
-    if old != "unavailable":
+    if old != "unavailable" and new != "unavailable":
       squeezebox_device = entity
       self.log("Call Squeezebox Activity.")
       if new == "off":
@@ -119,7 +120,7 @@ class SqueezeboxControl(hass.Hass):
       if old == "playing" and new == "paused":
         self.log("Gone from playing to paused.")
         self.turn_off(squeezebox_device)
-        if squeezebox_device == globals.squeezebox_dining:
+        if squeezebox_device in [globals.squeezebox_dining, globals.squeezebox_transporter]:
           self.switch_off_pioneer_amp()
 
   def call_sb_playlist(self, event_name, data, kwargs):
@@ -211,25 +212,30 @@ class SqueezeboxControl(hass.Hass):
         break
     self.call_service("remote/send_command", entity_id = remote_location, device = remote_device_id, command = input_name)
 
+  def find_remote_amp(self, amp_name):
+    all_locations = []
+    all_players = []
+    for player_location in globals.players:
+      if "remote_amp" in globals.players[player_location].keys():
+        remote_amp = globals.players[player_location]["remote_amp"]
+        if remote_amp == amp_name:
+          player_name = globals.players[player_location]["squeezebox_id"]
+          all_locations.append(str(player_location))
+          all_players.append(player_name)
+    return all_locations, all_players
 
-  #########################################################################################################################################
-  # Archived:
-  #########################################################################################################################################
-  #def squeezebox_switched_off(self, entity, attribute, old, new, kwargs):
-  #  self.log(squeezebox_friendly_name + ' Turned Off .')
+  def get_currently_playing_song(self, location):
+    media_artist = "No player found."
+    media_title = "No player found."
+    for player_location in globals.players:
+      if player_location == location:
+        player_id = globals.players[player_location]["squeezebox_id"]
+        media_artist = self.get_state(player_id, attribute = "media_artist")
+        if media_artist != None:
+          media_title = self.get_state(player_id, attribute ="media_title")
+        else:
+          media_artist = "No artist."
+          media_title = "No title."
+    return media_artist, media_title
 
-  #def squeezebox_started_playing(self, entity, attribute, old, new, kwargs):
-  #  self.log(squeezebox_friendly_name + ' Started Playing.')
-
-#def call_squeezebox_stopped_playing(self, entity, attribute, old, new, kwargs):
-  #   self.log(squeezebox_friendly_name + ' Stopped Playing.')
-  #   self.call_service("media_player/turn_off", entity_id = "globals.squeezebox_dining")
-
-  #global squeezebox_friendly_name 
-    #squeezebox_friendly_name = "Squeezebox Dining Room"
-
-#self.log("This is a test %s", globals.squeezebox_power_off_duration)
-    #self.log("This is a test 2 %s" % (globals.squeezebox_power_off_duration))
-    #self.log("This is also a test {}".format(globals.squeezebox_power_off_duration))
-    #self.log(f"This is a test 2 {globals.squeezebox_power_off_duration}, wibble")
 
