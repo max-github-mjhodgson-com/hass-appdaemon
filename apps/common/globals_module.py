@@ -87,6 +87,7 @@ squeezebox_transporter = "media_player.transporter"
 #squeezebox_transporter_power = "switch.teckin07"
 squeezebox_transporter_power = "switch.xenon01_l3"
 squeezebox_transporter_timer = "timer.squeezebox_transporter_auto_power_off"
+squeezebox_office = "media_player.b3_office"
 # Nested dictionary of SB locations, remote functions and power controls.
 players = { "lounge":       {
                                 "squeezebox_id": squeezebox_transporter,
@@ -114,6 +115,16 @@ players = { "lounge":       {
                                 "remote_amp": "pioneer_amp",
                                 "remote_amp_input": "input_ld",
                                 "remote_type": "ir",
+                            },
+            "office": { 
+                                "squeezebox_id": squeezebox_office,
+                                "power": "none",
+                                "friendly_name": "Office",
+                                "friendly_location": "Office",
+                                "remote_location": "none",
+                                "remote_amp": "none",
+                                "remote_amp_input": "none",
+                                "remote_type": "none",
                             }
           }
 
@@ -181,7 +192,7 @@ lounge_lamp = "light.lounge_lamp"
 dining_lamp = "light.dining_lamps"
 christmas_tree = "switch.christmas_tree"
 christmas_wall_lights = "switch.christmas_wall_lights"
-lounge_string_light = "light.string_01"
+lounge_string_light = "light.lifx_strip_1"
 lounge_string_light_timer = "timer.lounge_strip_light_timeout"
 lounge_string_light_duration = "600"
 lounge_light_sensor = "sensor.ep1_lounge_illuminance"
@@ -268,6 +279,11 @@ fordpass_car_deepsleep_off = "DISABLED"
 fordpass_alarm_armed = ["ARMED", "PREARMED"]
 fordpass_alarm_disarmed = "DISARMED"
 fordpass_door_lock_type = "sensor.fordpass_door_lock_type"
+fordpass_engine_start_mileage = "sensor.fordpass_engine_start_mileage"
+fordpass_last_trip_mileage = "sensor.fordpass_last_trip_mileage"
+fordpass_lock_check_timer = "timer.car_lock_check"
+fordpass_lock_timer_duration = "300"
+
     
 max_phone_bluetooth = secrets.max_phone_bluetooth
 diskstation_id = "switch.b3_diskstation01"
@@ -412,7 +428,7 @@ android_tv_app_details =    {
                             }
 
 notification_lights = {
-    "Lounge": "light.string_01",
+    "Lounge": "light.lifx_strip_1",
     "Main Bedroom": "",
     "Office": "",
     "Kitchen": "",
@@ -424,7 +440,8 @@ washing_machine_programmes_end_time = "sensor.washing_machine_finish_at"
 washing_machine_completed = "program_ended"
 
 # Weather:
-weather = "weather.accuweather"
+#weather = "weather.accuweather"
+weather = "sensor.pirateweather_precip"
 has_it_rained_today_switch = "input_boolean.has_it_been_raining"
 wind_bearing = "sensor.pirateweather_wind_bearing"
 wind_direction_sensor = "sensor.pirateweather_wind_direction"
@@ -434,6 +451,18 @@ tranporter_session_power_flag_name = "Transporter powered up already this home s
 
 telegram_input_text_message = "input_text.telegram_message"
 org_bl_input_text = secrets.org_bl_input_text
+
+# SabNZBD
+sabnzbd_api_key = secrets.sabnzbd_api_key
+sabnzbd_url = secrets.sabnzbd_url
+sabnzbd_speed = "sensor.sabnzbd_speed"
+sabnzbd_status = "sensor.sabnzbd_status"
+sabnzbd_total_disk_space = "sensor.sabnzbd_total_disk_space"
+sabnzbd_free_disk_space = "sensor.sabnzbd_free_disk_space"
+sabnzbd_queue_count = "sensor.sabnzbd_queue_count"
+sabnzbd_left_to_download = "sensor.sabnzbd_left_to_download"
+sabnzbd_purge_command = "rest_command/b3_jenkins_purge_download"
+
 
 class Globals(hass.Hass):
     def initialize(self):
