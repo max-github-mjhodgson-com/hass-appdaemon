@@ -47,6 +47,7 @@ garage_notify_app = "notify/garage_app"
 garage_input_number_garage_close_timer = "input_number.garage_door_close_timer"
 garage_input_number_garage_open_timer = "input_number.garage_door_open_timer"
 garage_light_off_timer_duration = "120"
+garage_door_power_timer_duration = "00:10:00"
 
 # Doorbell Specific
 doorphone_alert_channel = "Doorphone"
