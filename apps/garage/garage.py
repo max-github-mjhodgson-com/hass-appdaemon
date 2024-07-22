@@ -291,7 +291,7 @@ class Garage(hass.Hass):
           power_state = self.get_state(globals.garage_door_power_switch)
           if power_state == "On":
             self.log("Garage door power is on, extending timer.")
-            self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "600")
+            self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = globals.garage_door_power_timer_duratio)
         else:
           self.log("Garage PIR Sensor Actvated.")
           self.call_service(globals.max_telegram, title = "Garage Alert", message = "PIR Sensor detected motion in the garage.")
@@ -302,7 +302,7 @@ class Garage(hass.Hass):
           self.log("Reset close timer.")
           close_timer_state = self.get_state(globals.garage_door_no_motion_timer)
         if close_timer_state != "paused":
-          self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = "3600")
+          self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = globals.garage_door_no_motion_timer_duration)
       if door_state == "open" and dark_state == 'on':
         if anyone_home == 1:
           self.log("Door OPEN and it's dark (and someone is at home).")
@@ -385,12 +385,12 @@ class Garage(hass.Hass):
   def garage_light_off(self):
     self.log("Garage Light OFF function called.")
     self.turn_off(globals.garage_light_entity)
-    #self.call_service("timer/cancel", entity_id = globals.garage_light_timer)
+    self.call_service("timer/cancel", entity_id = globals.garage_light_timer)
 
   def garage_light_on(self):
     self.log("Garage Light ON function called.")
     self.turn_on(globals.garage_light_entity)
-    #self.call_service("timer/start", entity_id = globals.garage_light_timer)
+    self.call_service("timer/start", entity_id = globals.garage_light_timer)
 
   def switch_off_garage_door(self):
     self.log("Garage Door Power OFF function called.")
