@@ -129,7 +129,7 @@ players = { "lounge":       {
                                 "remote_type": "none",
                             }
           }
-
+playlists = secrets.playlists
 tv_power = "switch.teckin05"
 
 # House Mode:
