@@ -92,3 +92,11 @@ This listens to events from the Home Assistant Mobile App. Mainly events like pr
 
 This watches for data passed from the Ford Pass integration. It can create alerts based on alarm status, fuel level, battery status, etc. It can also activate automations based on the car's location e.g. If the car is entering the home zone, switch on the garage door power. It also can change the montoring period to/from 5 minutes (when the car is in use, or there are security events) and 4 hours (for when the car is not in use and to reduce load on the battery). There is also a counter to keep a log of refresh events as Ford limits calls to the API to 20,000 requests a month (and will disable accounts that exceed this).
 
+
+## Telegram Bot
+
+This allows commands to be send to Home Assistant via a Telegram chat client. The chats are pre-authenticated via Telegram. It allows commands in the format of:
+
+/garage door open
+
+and will also allow the showing of pop-up menus to cut down on typing on mobile devices.
