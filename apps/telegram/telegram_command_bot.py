@@ -99,7 +99,7 @@ class TelegramCommandBot(hass.Hass):
       
       # Say hello.
       self.start_of_conversation(user_id, first_name)
-      time.sleep(0.125) #  You shouldn't but...
+      time.sleep(0.125) # This is the only was you can do sub-second delays.
 
       match bot_command:
         case "diskstation":
@@ -197,8 +197,8 @@ class TelegramCommandBot(hass.Hass):
            menu_timeout = 1
            self.set_value(globals.garage_input_number_garage_open_timer, 600)
         case self.garage_door_airgap:
-          menu_timeout = 5
-          self.turn_on("script/garage_air_gap_2")
+          menu_timeout = 1
+          self.garage_library.open_air_gap()
           self.send_message(user_id, "Opening garage door airgap.")
           self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "18000") # 5 Hours.
         case [self.sb_playlist_command, playlist_id]:
