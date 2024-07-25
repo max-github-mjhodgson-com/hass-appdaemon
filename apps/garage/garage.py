@@ -81,14 +81,14 @@ class Garage(hass.Hass):
     self.listen_event(self.on_garage_door_no_motion_timer_finished, "timer.finished", entity_id = globals.garage_door_no_motion_timer )
     #self.listen_for_garage_power_on_and_open_event_handler = self.listen_event(self.on_power_on_and_open_garage, "power_on_garage_door_and_open")
     #self.listen_for_garage_door_close_and_power_off_event_handler = self.listen_event(self.on_close_garage_and_power_off, "close_garage_door_and_power_off")
-    self.listen_event(self.on_open_air_gap, "garage_open_air_gap")
+    self.listen_event(self.on_open_air_gap, "garage_open_air_gap") # Listen for event fired from Home Assistant frontend.
     self.listen_event(self.on_test_event, "garage_test_event")
 
   ###############################################################################################################
   # Callback functions:
   ###############################################################################################################
   # When Garage Door Opens.
-  def on_garage_door_open(self, entity, attribute, old, new, kwargs):
+  def on_garage_door_open(self, entity, attribute, old, new, cb_args):
     self.log("Garage Door Opened.")
     self.log("Cancelling 'open time' listener.")
     try:
@@ -132,7 +132,7 @@ class Garage(hass.Hass):
         self.garage_light_off()
 
   # When Garage Door Closes.
-  def on_garage_door_closed(self, entity, attribute, old, new, kwargs):
+  def on_garage_door_closed(self, entity, attribute, old, new, cb_args):
     self.log("Garage door closed.")
     self.log("Cancelling close time listener.")
     try:
@@ -159,15 +159,15 @@ class Garage(hass.Hass):
     self.call_service("timer/start", entity_id = globals.garage_door_power_timer)
     self.turn_off("input_boolean.garage_airgap")
   
-  def on_garage_light_on(self, entity, attribute, old, new, kwargs):
+  def on_garage_light_on(self, entity, attribute, old, new, cb_args):
     self.log("Garage Light Turned ON.")
     self.call_service("timer/start", entity_id = globals.garage_light_timer)
 
-  def on_garage_light_off(self, entity, attribute, old, new, kwargs):
+  def on_garage_light_off(self, entity, attribute, old, new, cb_args):
     self.log("Garage Light Turned OFF.")
     self.call_service("timer/cancel", entity_id = globals.garage_light_timer)
     
-  def on_garage_door_power_off(self, entity, attribute, old, new, kwargs):
+  def on_garage_door_power_off(self, entity, attribute, old, new, cbargs):
     self.log("Garage Door Powered OFF.")
     if self.function_library.is_house_occupied() != 1:  # If house is occupied, don't send a Telegram message.
       self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage Door Power Switched OFF.")
@@ -179,7 +179,7 @@ class Garage(hass.Hass):
                       )
     self.call_service("timer/cancel", entity_id = globals.garage_door_power_timer)
     
-  def on_garage_door_power_on(self, entity, attribute, old, new, kwargs):
+  def on_garage_door_power_on(self, entity, attribute, old, new, cb_args):
     self.log("Garage Door Powered ON.")
     house_mode = self.get_state(globals.house_mode_selector)
     if self.function_library.is_house_occupied() == 0:  # If house is occupied, don't send a Telegram message.
@@ -199,7 +199,7 @@ class Garage(hass.Hass):
       self.call_service("timer/start", entity_id = globals.garage_door_power_timer)
 
   # Power Timer Completed.
-  def on_garage_door_power_timer_finished(self, event, data, kwargs):
+  def on_garage_door_power_timer_finished(self, event, data, cb_args):
     self.log("Garage Door Power Timer Finished.")
     #self.turn_off(globals.garage_door_power_switch)
     self.switch_off_garage_door()
@@ -213,12 +213,12 @@ class Garage(hass.Hass):
       if door_power_state == 'off':
         self.log("garage.py: Close garage door, power is off, switching ON.")
         self.turn_on(globals.garage_door_power_switch)
-      self.log("garage.py: Closing door, after longterm timer.")
+      self.log("Closing door, after longterm timer.")
       self.run_in(self.on_close_garage_and_power_off, 3)
       self.run_in(self.check_door_is_closed_and_try_to_reclose, 60)
 
   # Input select close time.
-  def on_close_time_select(self, entity, attribute, old, new, kwargs):
+  def on_close_time_select(self, entity, attribute, old, new, cb_args):
     #global run_in_the_future_handler
     time_selected = int(float(new))
     if time_selected == 0:
@@ -244,7 +244,7 @@ class Garage(hass.Hass):
         self.call_service("timer/cancel", entity_id = globals.garage_door_no_motion_timer)
 
   # Input select open time.
-  def on_open_time_select(self, entity, attribute, old, new, kwargs):
+  def on_open_time_select(self, entity, attribute, old, new, cb_args):
     door_power_state = self.get_state(globals.garage_door_power_switch)
     #global run_in_the_future_handler
     time_selected = int(float(new))
@@ -268,7 +268,7 @@ class Garage(hass.Hass):
         self.call_service("timer/cancel", entity_id = globals.garage_door_power_timer)
 
   # Motion Detected:
-  def on_motion_detected(self, entity, attribute, old, new, kwargs):
+  def on_motion_detected(self, entity, attribute, old, new, cb_args):
     if old != "unavailable" and new != "unavailable":
       self.log("Garage Motion Detected.")
       dark_state = self.get_state('binary_sensor.dark')
@@ -311,64 +311,68 @@ class Garage(hass.Hass):
           self.log("Door OPEN and it's dark (and nobody is at home).")
   
   # Motion has ceased to be detected.
-  def on_motion_not_detected(self, entity, attribute, old, new, kwargs):
+  def on_motion_not_detected(self, entity, attribute, old, new, cb_args):
     """This will log when motion has stopped being detected."""
     self.log("Garage Motion Un-Detected.")
 
   # Garage light timer completed.
-  def on_garage_light_timer_finished(self, event, data, kwargs):
+  def on_garage_light_timer_finished(self, event, data, cb_args):
       self.log("Garage light timer finished.")
       self.turn_off(globals.garage_light_entity)
 
-  def on_set_timer_power_on_and_open_garage(self, kwargs):
+  def on_set_timer_power_on_and_open_garage(self, cb_args):
     self.log("Open timer called.")
     self.power_on_and_open_garage()
 
-  def on_set_timer_close_garage_and_power_off(self, kwargs):
+  def on_set_timer_close_garage_and_power_off(self, cb_args):
     self.log("Closed timer called.")
     self.close_garage_and_power_off()
 
-  def on_button_power_on_and_open_garage(self, entity, attribute, old, new, kwargs):
+  def on_button_power_on_and_open_garage(self, entity, attribute, old, new, cb_args):
     self.power_on_and_open_garage()
   
-  def on_button_close_garage_and_power_off(self, entity, attribute, old, new, kwargs):
+  def on_button_close_garage_and_power_off(self, entity, attribute, old, new, cb_args):
     self.close_garage_and_power_off()
 
-  def on_open_air_gap(self, event_name, data, kwargs):
+  def on_open_air_gap(self, event_name, data, cb_args):
     self.open_air_gap()
 
-  def on_test_event(self, event_name, data, kwargs):
+  def on_test_event(self, event_name, data, cb_args):
     self.log("Test event.")
 
-  def auto_close_timer_events(self, entity, attribute, old, new, kwargs):
+  def auto_close_timer_events(self, entity, attribute, old, new, cb_args):
     self.log("Timer event.")
     if old == "paused" and new == "active":
       self.log("Timer restarted")
     if old == "active" and new == "paused":
       self.log("Timer paused.")
 
-  def button_test_press(self, entity, attribute, old, new, kwargs):
+  def button_test_press(self, entity, attribute, old, new, cb_args):
     self.log("Test press.")
 
-  def on_power_on_and_open_garage(self, kwargs):
+  def on_power_on_and_open_garage(self, cb_args):
     self.log("On Power on and open garage event.")
     self.power_on_and_open_garage()
 
-  def on_close_garage_and_power_off(self, kwargs):
+  def on_close_garage_and_power_off(self, cb_args):
     self.log("On close garage and power off event.")
     self.close_garage_and_power_off()
 
-  def on_run_open_garage(self, kwargs):
+  def on_run_open_garage(self, cb_args):
     self.open_garage()
 
-  def on_run_open_air_gap_step_one(self, kwargs):
+  def on_run_open_air_gap_step_one(self, cb_args):
     self.log("Air gap step 1.")
     self.open_garage()
-    self.run_in(self.on_run_open_air_gap_step_two, 2)
+    time.sleep(1.5)
+    self.close_garage() # This doesn't actually close the door, it just presses the close button to stop the door mid-flight. 
+    current_house_mode = self.get_state(globals.house_mode_selector)
+    if current_house_mode in ["out", "away"]:
+      self.run_in(self.on_run_open_air_gap_step_two, 30)
+      self.garage_door_power_off()
 
-  def on_run_open_air_gap_step_two(self, kwargs):
-    self.log("Air gap step 2.")
-    self.close_garage()
+  def on_run_open_air_gap_step_two(self, cb_args):
+    self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "18000") # 5 Hours.
 
 ###############################################################################################################
 # Other functions:
@@ -437,12 +441,11 @@ class Garage(hass.Hass):
       self.log("Power OFF door.")
       self.switch_off_garage_door()
 
+  # Open a small gap in the main door to allow airflow.
   def open_air_gap(self):
     self.log("Garage door air gap called.")
     door_state = self.check_if_garage_closed()
     if door_state == "closed":
       self.switch_on_garage_door()
       self.run_in(self.on_run_open_air_gap_step_one, 2)
-      self.turn_on("input_boolean.garage_airgap")
-
-
+      self.turn_on(globals.garage_input_boolean_garage_airgap)

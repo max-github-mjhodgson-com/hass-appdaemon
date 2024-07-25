@@ -49,6 +49,7 @@ garage_input_number_garage_open_timer = "input_number.garage_door_open_timer"
 garage_light_off_timer_duration = "120"
 garage_door_power_timer_duration = "600"
 garage_door_no_motion_timer_duration = "3600"
+garage_input_boolean_garage_airgap = "input_boolean.garage_airgap"
 
 # Doorbell Specific
 doorphone_alert_channel = "Doorphone"
