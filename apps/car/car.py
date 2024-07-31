@@ -12,8 +12,6 @@ import globals_module as globals
 
 #from datetime import timedelta
 from datetime import date, datetime
-from geopy.geocoders import Nominatim
-
 
 # Fordpass message formats:
 # SecuriAlert - Driver door opened: 07/18/2022 06:50:42 AM
@@ -44,8 +42,9 @@ class Car(hass.Hass):
 
     # Initial setup:
     self.ignition_status = self.get_state(globals.car_ignition_status)
-    if self.ignition_status != "unavailable":
-      self.log("Initial ignition status: " + self.ignition_status)
+    #self.log("Initial ignition status: " + str(self.ignition_status))
+    if self.ignition_status != "unavailable" or self.ignition_status != None:
+      self.log("Initial ignition status: " + str(self.ignition_status))
       if self.ignition_status == "RUN":
         self.enable_short_timer()
       else:
@@ -54,8 +53,11 @@ class Car(hass.Hass):
       self.log(self.data_unavailable_message)
   
     self.lock_status = self.get_state(globals.fordpass_car_lock)
-    if self.lock_status != "unavailable":
-      self.log("Initial door lock status: " + self.lock_status)
+    
+    #if self.lock_status != "":
+    if self.lock_status != "unavailable" or self.lock_status != None:
+      self.log("Wibble.")
+      #self.log("Initial door lock status: " + self.lock_status)
     else:
       self.log(self.data_unavailable_message)
 
@@ -65,9 +67,9 @@ class Car(hass.Hass):
     else:
       self.log(self.data_unavailable_message)
 
-    self.alarm_status = self.get_state(globals.car_alarm_status)
-    if self.alarm_status != "unavailable":
-      self.log("Initial alarm status: " + self.alarm_status)
+    self.alarm_status = str(self.get_state(globals.car_alarm_status))
+    if self.alarm_status != "unavailable" or self.alarm_status != None:
+      self.log("Initial alarm status: " + str(self.alarm_status))
     else:
       self.log(self.data_unavailable_message)
     #if self.alarm_status in globals.fordpass_alarm_armed and self.window_status == "Closed":
@@ -79,14 +81,16 @@ class Car(hass.Hass):
     
 
     self.battery_status = self.get_state(globals.fordpass_battery_level)
-    if self.battery_status != "unavailable":
+    if self.battery_status == None or self.battery_status == "unavailable":
+      self.log("No integration.")
+      self.log(self.data_unavailable_message)
+    else:
+    #if self.battery_status != "unavailable" or self.battery_status != None:
       #self.log(battery_status)
       if int(self.battery_status) <= 50 and self.ignition_status == "off":
         self.log("Car battery is low.")
         self.enable_long_timer()
-    else:
-      self.log(self.data_unavailable_message)
-    
+
     self.current_message_count = self.get_state(globals.car_messages)
     if self.current_message_count != "unavailable":
       securialert_status, message_new, return_message = self.get_fordpass_messages(self.current_message_count)
@@ -107,7 +111,7 @@ class Car(hass.Hass):
     # State monitors:
     self.unlock_handler = self.listen_state(self.on_car_unlocked, globals.fordpass_car_lock, old = "locked", new = "unlocked", duration = 30)
     self.lock_handler = self.listen_state(self.on_car_locked, globals.fordpass_car_lock, old = "unlocked", new = "locked", duration = 30)
-    self.ignition_handler01 = self.listen_state(self.on_ignition_change, globals.car_ignition_status)
+    self.listen_state(self.on_ignition_change, globals.car_ignition_status)
     self.listen_for_ford_pass_refresh_button = self.listen_state(self.on_button_refresh_status_pressed, globals.car_refresh_button)
     self.listen_state(self.on_message_count_change, globals.car_messages)
     self.listen_state(self.on_battery_state_changed, globals.fordpass_battery_level)
@@ -120,6 +124,7 @@ class Car(hass.Hass):
     self.car_window_state_handler = self.listen_state(self.on_window_state_change, globals.car_window_position, attribute = "state")
     self.refresh_status_change = self.listen_state(self.on_refresh_status_change, globals.fordpass_refresh_status, new = "Off") #, old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
     #self.car_left_unlocked_handler = self.listen_state(self.on_car_left_unlocked, )
+    self.listen_event(self.call_lock_check_timer_completed, "timer.finished", entity_id = globals.fordpass_lock_check_timer)
     
     # Reset counter:
     reset_counter_handler = self.run_daily(self.on_is_it_the_first_of_the_month, "00:01:00")
@@ -150,12 +155,19 @@ class Car(hass.Hass):
 
   def on_car_locked(self, entity, attribute, old, new, kwargs):
     ignition_status = self.get_state(globals.car_ignition_status)
-    if ignition_status == "Off":
+    self.log("Ignition status (lock): " + str(ignition_status))
+    if ignition_status == "OFF":
       self.log("Car locked.")
       lock_type = self.get_lock_type()
       self.log("Lock type: " + str(lock_type))
       self.set_state(globals.fordpass_door_lock_type, state = lock_type, attributes = {"friendly_name": "Door Lock Type"})
-    elif ignition_status == "Run":
+      #if self.car_engine_run == True:
+      #  self.engine_stop_mileage = int(self.get_state(globals.fordpass_odometer))
+      #  self.log("Stop engine mileage: " + str(self.engine_stop_mileage))
+      #  self.trip_mileage = self.engine_stop_mileage - self.engine_start_mileage
+      #  self.log("Trip mileage: " + str(self.trip_mileage))
+      #  self.set_state(globals.fordpass_last_trip_mileage, state = str(self.trip_mileage), attributes = {"friendly_name": "Last Trip Mileage"})
+    elif ignition_status == "ON":
       self.log("Car auto-locked.")
 
   def on_car_alarm_change(self, entity, attribute, old, new, kwargs):
@@ -186,15 +198,35 @@ class Car(hass.Hass):
     #     self.enable_short_timer()
 
   def on_ignition_change(self, entity, attribute, old, new, kwargs):
-    if old != "unavailable" or new != "unavailable":
-      self.log("On ignition change: " + str(old))
-      ignition_status = new
-      self.log("Ignition status has changed: " + ignition_status)
-      lock_status = self.get_state(globals.fordpass_car_lock)
-      self.log("Lock status: " + lock_status)
-      if new == "RUN":
+    #if old != "unavailable" or new != "unavailable":
+    self.log("On ignition change: " + str(old))
+    ignition_status = new
+    self.log("Ignition status has changed: " + ignition_status)
+    lock_status = self.get_state(globals.fordpass_car_lock)
+    self.log("Lock status: " + lock_status)
+    battery_voltage = float(self.get_state(globals.fordpass_battery_voltage))
+    if new == "ON" and old == "OFF":
+      if battery_voltage > 13:
+        self.car_engine_run = True
         self.log("Car engine run.")
         self.enable_short_timer()
+        # Record Current Milege:
+        self.engine_start_mileage = self.get_state(globals.fordpass_odometer)
+        self.log(self.engine_start_mileage)
+        self.set_state(globals.fordpass_engine_start_mileage, state = self.engine_start_mileage, attributes = {"friendly_name": "Engine Start Mileage"})
+    if new == "OFF" and old == "ON":
+      self.log("Ingnition off.")
+      self.enable_long_timer()
+      # Start lock countdown timer:
+      self.call_service("timer/start", entity_id = globals.fordpass_lock_check_timer, duration = globals.fordpass_lock_timer_duration)
+      if self.car_engine_run == True:
+        self.car_engine_run = False
+        self.engine_stop_mileage = int(self.get_state(globals.fordpass_odometer))
+        self.log("Stop engine mileage: " + str(self.engine_stop_mileage))
+        self.trip_mileage = self.engine_stop_mileage - self.engine_start_mileage
+        self.log("Trip mileage: " + str(self.trip_mileage))
+        self.set_state(globals.fordpass_last_trip_mileage, state = str(self.trip_mileage), attributes = {"friendly_name": "Last Trip Mileage"})
+
       # To do:
       # Get and store current location.
       # Compare current location to test if car is moving.
@@ -291,6 +323,10 @@ class Car(hass.Hass):
           self.log("Short timer selected.")
           self.enable_short_timer()
   
+  def call_lock_check_timer_completed(self, event, data, kwargs):
+     self.log("Timer completed.")
+
+
 ###############################################################################################################
 # Other functions:
 ###############################################################################################################
@@ -337,20 +373,28 @@ class Car(hass.Hass):
 ###############################################################################################################
   def refresh_car_status(self, kwargs):
     self.log("Refresh car status.")
-    battery_level = int(self.get_state(globals.fordpass_battery_level))
-    if self.get_state(globals.fordpass_refresh_disable) == "off" or battery_level < 52: 
-      self.call_service(globals.car_refresh)
-      self.call_service("counter/increment", entity_id = globals.fordpass_refresh_counter)
-      self.log("Four hour handler id: " + str(self.longterm_update_handler))
-      self.log("Five minute handler id: " + str(self.shortterm_update_handler))
-      self.run_in(self.run_update_car_status, 30)
+    current_battery_level = self.get_state(globals.fordpass_battery_level)
+    if current_battery_level == None or current_battery_level == "unavailable":
+      self.log(self.data_unavailable_message)
     else:
-      self.log("Refresh disabled.")
+      if current_battery_level > 0 and current_battery_level < 101:
+        self.log("Current battery level: " + str(current_battery_level))
+        battery_level = int(current_battery_level)
+        self.log("Battery level: " + str(battery_level))
+        if self.get_state(globals.fordpass_refresh_disable) == "off" or battery_level < 52: 
+          self.call_service(globals.car_refresh)
+          self.call_service("counter/increment", entity_id = globals.fordpass_refresh_counter)
+          self.log("Four hour handler id: " + str(self.longterm_update_handler))
+          self.log("Five minute handler id: " + str(self.shortterm_update_handler))
+          self.run_in(self.run_update_car_status, 30)
+      else:
+        self.log("Refresh disabled.")
 
   def get_car_status(self):
     ignition_status = self.get_state(globals.car_ignition_status)
     alarm_status = ""
     window_status = ""
+    door_status = ""
     if ignition_status != "unavailable":
       self.log("=" * 60)
       self.log("Current car status:")
@@ -362,21 +406,20 @@ class Car(hass.Hass):
       self.log("Lock state: " + str(lock_status))
       alarm_status = self.get_state(globals.car_alarm_status)
       self.log("Alarm status: " + alarm_status)
-      window_status = self.get_state(globals.car_window_position, attribute="state")
+      window_status = self.get_state(globals.car_window_position, attribute = "state")
       self.log("Window status: " + str(window_status))
-      global door_status
-      door_status = self.get_state(globals.car_door_status, attribute="state")
+      door_status = self.get_state(globals.car_door_status, attribute = "state")
       self.log("Door status: " + str(door_status))
       battery_status = self.get_state(globals.fordpass_battery_level)
       self.log("Battery level: " + str(battery_status))
       battery_voltage = self.get_state(globals.fordpass_battery_voltage)
       self.log("Battery voltage: " + str(battery_voltage))
-      self.car_current_position_longitude = self.get_state(globals.car_tracker, attribute="longitude")
-      self.car_current_position_latitude = self.get_state(globals.car_tracker, attribute="latitude")
+      self.car_current_position_longitude = self.get_state(globals.car_tracker, attribute = "longitude")
+      self.car_current_position_latitude = self.get_state(globals.car_tracker, attribute = "latitude")
       self.log("Longitude: " + str(self.car_current_position_longitude) + " , Latitude: " + str(self.car_current_position_latitude))
       self.car_position_current_zone = self.get_state(globals.car_tracker)
       self.log("Car position current zone (if any): " + str(self.car_position_current_zone))
-      self.car_position_last_change = self.get_state(globals.car_tracker, attribute="timestamp")
+      self.car_position_last_change = self.get_state(globals.car_tracker, attribute = "timestamp")
       self.log("Car position last change: " + str(self.car_position_last_change))
       #self.car_direction - self.get_state(globals.fordpass_car_direction)
       #self.log("Car direction: " + str(self.car_direction))
@@ -428,44 +471,49 @@ class Car(hass.Hass):
     #self.log("Current messages: " + str(current_messages))
 
     current_messages = self.get_state(globals.car_messages, attribute = "all")
-    self.log("Current messages: " + str(current_messages))
-    message_list = current_messages["attributes"]
-    self.log(message_list.keys())
-    first_message = list(message_list.keys())[0]
-    message_date_and_time = list(message_list.values())[0]
-    self.log("Message date and time: " + str(message_date_and_time))
-    self.log("First message: " + str(first_message))
-
-    if first_message == "Remote features disabled to preserve battery":
-      self.log("Remote features disabled.")
-      return_message = first_message
-    elif first_message == "Tyre Pressure Monitor System Warning":
-      self.log("Tyre pressure warning.")
-      return_message = first_message
-    elif first_message.find("SecuriAlert") != -1:
-      if first_message == "SecuriAlert will no longer be available ":
-        pass
-      else:
-        self.log("First message: " + first_message)
-        securialert_status = "on"
-        alert_item_start = first_message.index("-") + 2
-        if first_message.find(":") == True:
-          alert_item_end = first_message.index(":")
+    if current_messages == None or current_messages == "unavailable":
+      self.log(self.data_unavailable_message)
+      securialert_status = "Null"
+      message_new = "Null"
+      return_message = "Null"
+    else:
+      self.log("Current messages: " + str(current_messages))
+      message_list = current_messages["attributes"]
+      self.log(message_list.keys())
+      first_message = list(message_list.keys())[0]
+      message_date_and_time = list(message_list.values())[0]
+      self.log("Message date and time: " + str(message_date_and_time))
+      self.log("First message: " + str(first_message))
+      if first_message == "Remote features disabled to preserve battery":
+        self.log("Remote features disabled.")
+        return_message = first_message
+      elif first_message == "Tyre Pressure Monitor System Warning":
+        self.log("Tyre pressure warning.")
+        return_message = first_message
+      elif first_message.find("SecuriAlert") != -1:
+        if first_message == "SecuriAlert will no longer be available ":
+          pass
         else:
-          alert_item_end = len(first_message)
-          alert_item = first_message[alert_item_start:]
-          self.log("Alert item: " + str(alert_item))
-          alert_sub_item = alert_item.split("- ")
-          self.log("Alert sub-item: " + str(alert_sub_item))
-          #alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
-          alert_date_and_time = message_date_and_time.split(" ",1)
-          alert_date = alert_date_and_time[0]
-          self.log("Alert Date: " + str(alert_date))
-          #alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
-          alert_time = alert_date_and_time[1]
-          self.log("Alert Time: " + str(alert_time))
-          self.log("SecuriAlert")
-          return_message = alert_item
+          self.log("First message: " + first_message)
+          securialert_status = "on"
+          alert_item_start = first_message.index("-") + 2
+          if first_message.find(":") == True:
+            alert_item_end = first_message.index(":")
+          else:
+            alert_item_end = len(first_message)
+            alert_item = first_message[alert_item_start:]
+            self.log("Alert item: " + str(alert_item))
+            alert_sub_item = alert_item.split("- ")
+            self.log("Alert sub-item: " + str(alert_sub_item))
+            #alert_date = first_message[alert_item_end + 2:alert_item_end + 10]
+            alert_date_and_time = message_date_and_time.split(" ",1)
+            alert_date = alert_date_and_time[0]
+            self.log("Alert Date: " + str(alert_date))
+            #alert_time = first_message[alert_item_end + 13:alert_item_end + 24]
+            alert_time = alert_date_and_time[1]
+            self.log("Alert Time: " + str(alert_time))
+            self.log("SecuriAlert")
+            return_message = alert_item
     # self.set_state("sensor.fordpass_last_message", state="Messages", attributes = {"friendly_name": "Ford Pass Last Message", "detail": None, "last_message": first_message})
     # TO DO: Clear alert in x hours.
     return securialert_status, message_new, return_message
@@ -477,17 +525,6 @@ class Car(hass.Hass):
   def unlock_car(self):
     self.log("I will unlock the car.")
     self.call_service("lock/unlock", entity_id = globals.fordpass_car_lock)
-
-  def get_car_address(self):
-    current_location = (self.get_state(globals.car_tracker, attribute = "latitude"), self.get_state(globals.car_tracker, attribute = "longitude"))
-    try:
-      geolocator = Nominatim(user_agent = "appdaemon")
-    except Exception:
-      self.log("Unable to get street address.")
-      car_address = "Unable to get street address."
-    finally:
-      car_address = geolocator.reverse(current_location)
-    return car_address
 
   def get_lock_type(self):
     car_metrics_door_locks = self.get_state("sensor.fordpass_metrics", attribute = "doorLockStatus")
