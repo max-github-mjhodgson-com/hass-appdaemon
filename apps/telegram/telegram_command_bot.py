@@ -104,6 +104,8 @@ class TelegramCommandBot(hass.Hass):
       match bot_command:
         case "diskstation":
           self.diskstation(user_id, number_of_arguments, bot_args)
+        case "doorphone":
+          self.doorphone(user_id, number_of_arguments, bot_args)
         case "garage":
           self.garage(user_id, number_of_arguments, bot_args)
         case "help":
@@ -124,6 +126,8 @@ class TelegramCommandBot(hass.Hass):
           self.squeezebox(user_id, number_of_arguments, bot_args, bot_command)
         case ("sabnzbd"|"sab"):
           self.sabnzbd(user_id, number_of_arguments, bot_args, bot_command)
+        case ("where"):
+          self.where(user_id, number_of_arguments, bot_args, first_name, bot_command)
         case "markdown":
           self.send_markdown_message(user_id, "## _The Last Markdown Editor, Ever_")
         case _:
@@ -229,8 +233,6 @@ class TelegramCommandBot(hass.Hass):
                          message = message)
     
     def delete_message(self, chat_id, message_id):
-      #self.log("Chat ID: " + str(chat_id))
-      #self.log("Message ID: " + str(message_id))
       self.call_service('telegram_bot/delete_message',
                          message_id = message_id,
                          chat_id = chat_id)
@@ -254,6 +256,12 @@ class TelegramCommandBot(hass.Hass):
                          target = user_id,
                          message = message,
                          parse_mode = "markdown")
+
+    def send_video_by_url(self, user_id, message, url):
+      self.call_service('telegram_bot/send_video',
+                         target = user_id,
+                         caption = message,
+                         url = url)
 
     def start_of_conversation(self, user_id, user_name):
       if user_id not in self.last_conversation:
@@ -281,16 +289,19 @@ class TelegramCommandBot(hass.Hass):
       self.log(bot_args)
       if number_of_arguments == 0:
         self.log("Show main help.")
-        msg = 'Commands:' +'\n' + '/frontdoor pic' + '\t\t' + '-' + '\t' + 'Get a picture from the front door camera.' + '\n'
+        msg = 'Commands:' +'\n' 
+        #msg += '/frontdoor pic' + '\t\t' + '-' + '\t' + 'Get a picture from the front door camera.' + '\n'
+        msg += '/doorphone <restart>' + '\t' + '-' + '\t' + 'Doorphone controls.' + '\n'
         msg += '/garage status' + '\t' + '-' + '\t' + 'Get some environment details from the garage sensor.' + '\n'
         msg += '/garage door open' + '\t' + '-' + '\t' + 'Open the garage door.' + '\n'
         msg += '/garage door close' + '\t' + '-' + '\t' + 'Close the garage door.' + '\n'
         msg += '/house mode <out|away|home|sleep|pre-departure>' + '\t' + '-' + '\t' + 'Get or change current house mode.\n'
+        msg += '/internet <drayek|virgin>' + '-' + '\t' + 'Internet information and controls' + '\n'
         msg += '/kettle on' + '\t' + '-' + '\t' + 'Turn on kettle power.' + '\n'
         msg += '/light status' + '\t' + '-' + '\t' + 'Get current light status.' + '\n'
         msg += '/media <playing>' + '\t' + '-' + '\t' + 'Media controls.' + '\n'
         msg += '/squeezebox, /sb <play|pause>|<playlist>\n'
-        msg += '/sab' + '\t' + '-' + '\t' + 'Control SabNZBD.' + '\n'
+        msg += '/sab <status|pause|resume>' + '\t' + '-' + '\t' + 'Control SabNZBD.' + '\n'
         self.send_message(user_id, msg)
 
     # Garage functions.
@@ -592,6 +603,19 @@ class TelegramCommandBot(hass.Hass):
       self.send_message(user_id, msg)
 
     # Internet status and controls.
+    def doorphone(self, user_id, number_of_arguments, bot_args):
+      match number_of_arguments:
+        case 0:
+          msg = "Help: /doorphone <restart>"
+          self.send_message(user_id, msg)
+        case 1:
+          match bot_args[0]:
+            case "restart": # Power cycle doophone.
+              msg = "Restarting doorphone."
+              self.send_message(user_id, msg)
+              self.call_service("switch/turn_off", entity_id = globals.doorphone_power) # This is set to automatically power back on.
+
+    # Internet status and controls.
     def internet(self, user_id, number_of_arguments, bot_args):
       match number_of_arguments:
         case 0:
@@ -810,7 +834,6 @@ class TelegramCommandBot(hass.Hass):
         case 1:
           match bot_args[0]:
             case "playlist":
-              self.log("Show playlist menu.")
               self.show_playlist_menu(user_id)
 
     def show_playlist_menu(self, user_id):
@@ -861,6 +884,22 @@ class TelegramCommandBot(hass.Hass):
               player = bot_args[2]
               msg = "Playlist: " + playlist + " on " + player + "."
       self.send_message(user_id, msg)
+
+    def where(self, user_id, number_of_arguments, bot_args, user_name, bot_command):
+      if number_of_arguments > 1:
+        match bot_args:
+          case ["am", ("i"| "I")]:
+            self.log("Where am I?")
+            person = "person." + user_name.lower()
+            person_long = self.get_state(person, attribute = "longitude")
+            person_lat = self.get_state(person, attribute = "latitude")
+            street_address = self.misc_automations.get_address_from_long_lat(person_long, person_lat)
+            self.call_service('telegram_bot/send_location',
+                         target = user_id,
+                         latitude = person_lat,
+                         longitude = person_long)
+            self.send_message(user_id, street_address)
+
 
     # This creates the Text and Activity string combinations for creating Telegram menus.
     def create_menu_element(self, menu_description_text, menu_activity):

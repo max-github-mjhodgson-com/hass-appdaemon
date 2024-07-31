@@ -7,6 +7,7 @@ import globals_module as globals
 
 from datetime import date, datetime, time
 from requests import Session
+from geopy.geocoders import Nominatim
 
 class MiscAutomations(hass.Hass):
   
@@ -152,7 +153,7 @@ class MiscAutomations(hass.Hass):
     self.log("Pausing SabNZBD for: " + str(self.sab_pause_duration_in_minutes) + " minutes.")
     api_resume = self.sab_pause_and_resume + str(self.sab_pause_duration_in_minutes)
     uri = self.sab_api_uri + api_resume
-    self.pause_and_set_sabnzbd_resume_time(uri, self.sab_pause_duration_in_minutes)
+    self.pause_and_set_sabnzbd_resume_time(uri)
 
   
   ###############################################################################################################
@@ -183,4 +184,14 @@ class MiscAutomations(hass.Hass):
       except:
         api_response = False
   
+  def get_address_from_long_lat(self, longitude, latitude):
+    current_location = (latitude, longitude)
+    try:
+      geolocator = Nominatim(user_agent = "appdaemon")
+    except Exception:
+      self.log("Unable to get street address.")
+      address = "Unable to get street address."
+    finally:
+      address = geolocator.reverse(current_location)
+    return address
 
