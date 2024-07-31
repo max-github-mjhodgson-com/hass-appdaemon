@@ -207,6 +207,7 @@ lounge_occupancy_sensor = "binary_sensor.ep1_lounge_occupancy"
 lounge_lamp_select_name = "Lounge Lamp" 
 dining_lamp_select_name = "Dining Lamp"
 lounge_lamps_input_select = "input_select.lounge_dining_lamp_link_master"
+lounge_fan = "switch.xenon01_l5"
 
 # Light Groups (without the "group." bit):
 all_lights = "lights"
