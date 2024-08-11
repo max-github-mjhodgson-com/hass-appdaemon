@@ -22,24 +22,23 @@ class MiscAutomations(hass.Hass):
     self.sab_api_uri = globals.sabnzbd_url + "/sabnzbd/api?apikey=" + globals.sabnzbd_api_key + "&output=json"
     self.sab_pause_and_resume = "&mode=config&name=set_pause&value="
     self.sab_pause_duration_in_minutes = 930
+    self.weather = "weather.home"
 
     # Load external AppDaemon libraries:
     self.function_library = self.get_app("function_library")
 
     # Startup sanity checks:
-    self.run_in(self.on_weather_change_cb, 1)
     self.run_in(self.setup_working_day, 1)
     direction = self.function_library.get_wind_direction()
     self.set_state(globals.wind_direction_sensor, state = direction, attributes = {"friendly_name": "Wind Direction"})
-
     
     # Time based tasks:
-    setup_working_day = self.run_daily(self.setup_working_day, "00:00:01")
-    reset_rain_switch = self.run_daily(self.run_at_midnight_tasks, "00:00:02")
-    pause_sabnzbd = self.run_daily(self.on_pause_sabnzbd_during_the_day, "07:30:00")
+    self.run_daily(self.setup_working_day, "00:00:01")
+    self.run_daily(self.run_at_midnight_tasks, "00:00:02")
+    self.run_daily(self.on_pause_sabnzbd_during_the_day, "07:30:00")
 
     # State Monitors:
-    self.listen_state(self.on_weather_change, globals.weather)
+    self.listen_state(self.on_weather_change, self.weather, immediate = True)
     self.listen_state(self.on_thunderstorm_nearby, "sensor.blitzortung_lightning_distance", old = "unknown")
     self.listen_state(self.on_wind_direction_change, globals.wind_bearing)
     self.listen_state(self.on_hub_power_switched_off, globals.draytek_router_power, old = "on", new = "off", duration = "30")
@@ -58,9 +57,16 @@ class MiscAutomations(hass.Hass):
       if text_entity_id == globals.telegram_input_text_message:
         self.call_service(globals.max_telegram, title = "HA Web frontend message.", message = text_contents)
 
-  def on_weather_change(self, entity, attribute, old, new, cbargs):
+  def on_weather_change(self, entity, attribute, old, new, cb_args):
     if old not in ["unknown", "unavailable"]:
-      self.run_in(self.on_weather_change_cb, 1)
+      self.log("Old: " + str(old))
+      self.log("New: " + str(new))
+      #self.run_in(self.on_weather_change_cb, 1)
+      bad_weather_conditions = ["rain", "pour", "pouring", "drizzle"]
+      current_condition = self.get_state(self.weather)
+      if current_condition in bad_weather_conditions:
+        self.log("It has been raining.")
+        self.turn_on(globals.has_it_rained_today_switch)
 
   def on_thunderstorm_nearby(self, entity, attribute, old, new, cb_args):
     self.log("Thunderstorm.")
@@ -135,13 +141,7 @@ class MiscAutomations(hass.Hass):
     direction = self.function_library.get_wind_direction()
     self.log("Wind direction: " + str(direction))
     self.set_state(globals.wind_direction_sensor, state = direction, attributes = {"friendly_name": "Wind Direction"})
-  
-  def on_weather_change_cb(self, cb_args):
-    bad_weather_conditions = ["rain", "pour", "pouring", "drizzle"]
-    current_condition = self.get_state(globals.weather)
-    if current_condition in bad_weather_conditions:
-        self.log("It has been raining.")
-        self.turn_on(globals.has_it_rained_today_switch)
+
 
   def on_hub_power_switched_off(self, entity, attribute, old, new, kwargs):
     power_entity = entity
