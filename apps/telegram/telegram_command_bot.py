@@ -291,7 +291,7 @@ class TelegramCommandBot(hass.Hass):
         self.log("Show main help.")
         msg = 'Commands:' +'\n' 
         #msg += '/frontdoor pic' + '\t\t' + '-' + '\t' + 'Get a picture from the front door camera.' + '\n'
-        msg += '/doorphone <restart>' + '\t' + '-' + '\t' + 'Doorphone controls.' + '\n'
+        msg += '/doorphone restart' + '\t' + '-' + '\t' + 'Doorphone controls.' + '\n'
         msg += '/garage status' + '\t' + '-' + '\t' + 'Get some environment details from the garage sensor.' + '\n'
         msg += '/garage door open' + '\t' + '-' + '\t' + 'Open the garage door.' + '\n'
         msg += '/garage door close' + '\t' + '-' + '\t' + 'Close the garage door.' + '\n'
@@ -876,8 +876,8 @@ class TelegramCommandBot(hass.Hass):
               else:
                 msg = "Error: Squeezebox location missing."
         case _ if number_of_arguments >2:
-          self.log(bot_args)
-          self.log(bot_args[0])
+#          self.log(bot_args)
+#          self.log(bot_args[0])
           match bot_args[0]:
             case "playlist":
               playlist = bot_args[1]
