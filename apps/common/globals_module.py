@@ -26,6 +26,8 @@ max_telegram = secrets.max_telegram
 max_app_note_9 = secrets.max_app_note_9
 notify_max_all = "notify/max_all"
 hall_panel_app = "notify/mobile_app_hall_panel"
+telegram_security_alerts = secrets.telegram_security_alerts
+telegram_garage_alerts = secrets.telegram_garage_alerts
 
 # Misc
 dark_sensor = "binary_sensor.dark"
@@ -207,7 +209,7 @@ lounge_occupancy_sensor = "binary_sensor.ep1_lounge_occupancy"
 lounge_lamp_select_name = "Lounge Lamp" 
 dining_lamp_select_name = "Dining Lamp"
 lounge_lamps_input_select = "input_select.lounge_dining_lamp_link_master"
-lounge_fan = "switch.xenon01_l5"
+lounge_fan = "switch.xenon01_l2"
 
 # Light Groups (without the "group." bit):
 all_lights = "lights"
@@ -298,8 +300,13 @@ pbm_zone = secrets.pbm_zone
 # Movement and Occupancy sensors:
 house_movement_sensors = "group.house_movement_sensors"
 lounge_mmwave = "binary_sensor.ep1_lounge_mmwave"
+lounge_sensor_light = "light.ep1_lounge2_mmwave_led"
 lounge_pir = ""
 lounge_occupancy = ""
+security_zone_1 = ["lounge"]
+security_zone_2 = ["landing"]
+out_away_zones = [security_zone_1]
+sleep_zones = [security_zone_1, security_zone_2]
 
 # Network:
 network_vpn_ping_status = "binary_sensor.vpn_remote_endpoint_b"
@@ -467,6 +474,7 @@ sabnzbd_queue_count = "sensor.sabnzbd_queue_count"
 sabnzbd_left_to_download = "sensor.sabnzbd_left_to_download"
 sabnzbd_purge_command = "rest_command/b3_jenkins_purge_download"
 
+lock_ibm_laptop_button = secrets.lock_ibm_laptop_button
 
 class Globals(hass.Hass):
     def initialize(self):
