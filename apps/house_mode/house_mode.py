@@ -33,42 +33,26 @@ class House_Mode(hass.Hass):
     self.squeezebox_control_library = self.get_app("squeezebox_control")
     self.max_automations_library = self.get_app("max_automations")
 
+    # Setup some variables:
     self.unavailable_states = ["unknown", "unavailable"]
 
-    current_house_mode = self.get_state(globals.house_mode_selector)
-    self.log("Current house mode: " + str(current_house_mode))
-    if current_house_mode == "Just Arrived":
-      self.log("Changing house mode to home.")
-      self.select_option(globals.house_mode_selector, "Home")
-    elif current_house_mode == "Just Left":
-      self.log("Changing house mode to out.")
-      self.select_option(globals.house_mode_selector, "Out")
-
-    self.log(self.get_people_at_home())
-
-    # States:
-    self.group_persons_entity = self.get_entity("group.persons")
-    self.group_persons_entity.listen_state(self.on_everyone_is_out, new = "not_home", duration = 20)
-    self.group_persons_entity.listen_state(self.on_someone_just_arrived_home, new = "home", duration = 20)
+    
+    # State Monitors:
+    self.listen_state(self.on_everyone_is_out, entity_id = "group.persons", new = "not_home", duration = 20, immediate = True)
+    self.listen_state(self.on_someone_just_arrived_home, entity_id = "group.persons", new = "home", duration = 20, immediate = True)
     self.house_mode_selector_entity = self.get_entity(globals.house_mode_selector)
-    self.house_mode_selector_entity.listen_state(self.on_house_mode_just_left_timeout, new = "Just Left", old = "Home", duration = 30)
-    self.house_mode_selector_entity.listen_state(self.on_house_mode_just_arrived_timeout, new = "Just Arrived", old = ["Out", "Away"], duration = 30)
-    self.house_mode_selector_entity.listen_state(self.on_execute_just_arrived_automations, new = "Just Arrived", old = "Out", duration = 10)
-    self.house_mode_selector_entity.listen_state(self.on_execute_just_left_automations, new = "Just Left", old = "Home", duration = 10)
+    self.listen_state(self.on_execute_just_left_automations, entity_id = globals.house_mode_selector, new = "Just Left", old = "Home", duration = 10, immediate = True)
+    self.listen_state(self.on_execute_just_arrived_automations, entity_id = globals.house_mode_selector, new = "Just Arrived", old = ["Out", "Away"], duration = 10, immediate = True)
+    self.listen_state(self.on_house_mode_out_timeout, entity_id = globals.house_mode_selector, new = "Out", old = "Home", duration = 259200, immediate = True) # 259200 = 3 days
+    self.listen_state(self.on_house_mode_change, entity_id = globals.house_mode_selector, duration = 2, immediate = True)
     self.house_mode_selector_entity.listen_state(self.on_execute_pre_arrival_automations, new = "Pre-Arrival", duration = 10) # old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
     self.house_mode_selector_entity.listen_state(self.on_house_mode_pre_departure_selected, new = "Pre-Departure", duration = 10) #, old = lambda x : x not in ["unknown", "unavailable"], duration = 10)
-    self.house_mode_selector_entity.listen_state(self.on_house_mode_change)
+    
     people = self.get_state("group.persons", attribute = "entity_id")
-    list_of_people = []
-    for person in people:
-      #self.log(person)
-      list_of_people.append(person)
-      self.person_entity = self.get_entity(person)
-      self.person_entity.listen_state(self.on_who_has_left_or_entered, duration = 10)
-    #self.log(list_of_people)
-    #self.listen_state(self.on_who_has_left_or_entered, list_of_people, duration = 10)
+    self.log(people)
+    self.listen_state(self.on_who_has_left_or_entered, entity_id = people, duration = 10)
 
-    # Events:
+    # Event Monitors:
     self.listen_event(self.on_pre_departure_event, "pre_departure_activated")
     self.listen_state(self.on_button_press_pre_departure, 'input_button.pre_departure')
 
@@ -76,12 +60,13 @@ class House_Mode(hass.Hass):
 # Callback functions:
 ############################################################################################################### 
   def on_everyone_is_out(self, entity, attribute, old, new, cb_args):
-    self.log('The last person just left the house.')
-    self.select_option(globals.house_mode_selector, "Just Left")
+    if old not in self.unavailable_states:
+      if self.get_state(globals.house_mode_selector) == "Home":
+        self.log('The last person just left the house.')
+        self.select_option(globals.house_mode_selector, "Just Left")
 
   def on_someone_just_arrived_home(self, entity, attribute, old, new, cb_args):
-    self.log('Someone just arrived home.: ' + entity)
-    self.log(attribute)
+    self.log("Someone just arrived home.")
     any_movement = self.get_state(globals.house_movement_sensors)
     if any_movement != "off":
       self.log("Someone moved.")
@@ -105,7 +90,7 @@ class House_Mode(hass.Hass):
     if old != "Out":
       self.select_option(globals.house_mode_selector, "Home")
   
-  # Manuallly triggered pre-arrival.
+  # Manuallly triggered pre-arrival. Todo: Run automations when a zone is entered.
   def on_execute_pre_arrival_automations(self, entity, attribute, old, new, cb_args):
     if old not in self.unavailable_states:
       self.log("Pre-arrival automations.")
@@ -119,30 +104,39 @@ class House_Mode(hass.Hass):
 
   def on_execute_just_arrived_automations(self, entity, attribute, old, new, cb_args):
     self.log('Execute just arrived global automations.')
-    self.call_service(globals.max_app, title = "House mode: Just arrived.",\
-                                       message = "TTS",\
-                                       data = {"media_stream": "alarm_stream",\
-                                               "tts_text": "House mode: Just arrived."})
-                                               # alarm_stream_max
-    #day_today = datetime.today().weekday() # Monday is 0 Tue:1 Wed:2 Thu:3 Fri:4 Sat:5 Sun:6
-    self.run_in(self.on_change_house_mode_cb, 10, house_mode = "Home")
-  
+    if old != "unavailable":
+      self.run_in(self.on_change_house_mode_cb, 20, house_mode = "Home")
+      self.call_service(globals.max_app, title = "House mode: Just arrived.",\
+                                         message = "TTS",\
+                                         data = {"media_stream": "alarm_stream",\
+                                                 "tts_text": "House mode: Just arrived."})
+                                                 # alarm_stream_max
+ 
   def on_execute_just_left_automations(self, entity, attribute, old, new, cb_args):
     """This will execute automations when everybody has left the house."""
     if old != "unavailable" and (old == "Home" or old == "Pre-Departure"):
+      self.log("Just left activated.")
+      self.run_in(self.on_change_house_mode_cb, 20, house_mode = "Out")
       self.just_left_automations()
 
-
   def on_house_mode_change(self, entity, attribute, old, new, cb_args):
-    base_message = "House Mode Changed: "
-    if new == "Away":
-      self.log (base_message + "Away selected.")
-    elif new == "Out":
-      self.log(base_message + "Out selected.")
-    elif new == "Home":
-      self.log(base_message + "Home selected. old: " + str(old))
-    elif new == "Sleep":
-      self.log(base_message + "Sleep selected.")
+    if new not in self.unavailable_states and old not in self.unavailable_states:
+      current_house_mode = self.get_state(globals.house_mode_selector)
+      self.log("Current house mode: " + str(current_house_mode))
+      base_message = "House Mode Changed: "
+      match new:
+        case "Away":
+          if old == "Out":
+            self.log(base_message + "Away selected.")
+        case "Out":
+          self.log(base_message + "Out selected.")
+        case "Home":
+          self.log(base_message + "Home selected. old: " + str(old))
+          self.log(self.get_people_at_home())
+        case "Sleep":
+          if old == "Home":
+            self.log(base_message + "Sleep selected.")
+            self.log(self.get_people_at_home())
 
   def on_house_mode_pre_departure_selected(self, entity, attribute, old, new, cb_args):
     if old not in self.unavailable_states:
@@ -162,9 +156,9 @@ class House_Mode(hass.Hass):
     self.select_option(globals.house_mode_selector, "Pre-departure")
 
   def on_who_has_left_or_entered(self, entity, attribute, old, new, cb_args):
-    person_and_name = entity.split(".")
-    name_only = person_and_name[1]
-    workday_person = self.function_library.is_it_a_work_day_today(name_only)
+    #person_and_name = entity.split(".")
+    #name_only = person_and_name[1]
+    #workday_person = self.function_library.is_it_a_work_day_today(name_only)
     friendly_name = self.get_state(entity, attribute = "friendly_name")
     if old == "home":
       self.log(str(friendly_name) + " has left.")
@@ -176,10 +170,15 @@ class House_Mode(hass.Hass):
     self.log("House mode change: " + str(house_mode_to_change_to))
     self.select_option(globals.house_mode_selector, house_mode_to_change_to)
 
+  # This will change the house to "away" mode after it has been set to "out" mode for a period of time.
+  def on_house_mode_out_timeout(self, entity, attribute, old, new, cb_args):
+    self.log("Changing to Away mode.")
+    self.select_option(globals.house_mode_selector, "Away")
+    
+
 ###############################################################################################################
 # Other functions:
 ###############################################################################################################
-
   def pre_departure_automations(self):
     self.log("Pre-departure automations")
     dark_state = self.get_state(globals.dark_sensor)
@@ -197,7 +196,7 @@ class House_Mode(hass.Hass):
   def just_left_automations(self):
     self.log("Execute just left automations.")
     #self.call_service(globals.max_app, title = "House mode: Just left.", message = "TTS")
-    self.call_service("remote/send_command", entity_id = globals.lounge_remote, device="pioneer_amp", command ="power_off")
+    self.call_service("remote/send_command", entity_id = globals.lounge_remote, device = "pioneer_amp", command ="power_off")
     self.turn_off(globals.garage_light_entity)
     garage_door_state = self.get_state(globals.garage_door_entity)
     if garage_door_state == "closed":
@@ -211,21 +210,23 @@ class House_Mode(hass.Hass):
                                                  "actions":[globals.android_app_action_close_garage_door]})
     devices_off_on_exit = [globals.kettle, globals.tv_power, globals.lounge_fan]
     for device in devices_off_on_exit:
-      self.log(device)
+      self.log("Turning off: " + str(device))
       self.call_service("switch/turn_off", entity_id = device)
     self.turn_on(globals.person_detection_switch)
     self.max_automations_library.lock_laptop()
-    self.squeezebox_control_library.power_off_squeezebox(globals.squeezebox_transporter_power)
 
-    # Reset Transporter power flag:
+    # Turn off Transporter and reset power flag:
+    self.squeezebox_control_library.power_off_squeezebox(globals.squeezebox_transporter_power)
     self.set_state(globals.tranporter_session_power_flag, state = "off", attributes = {"friendly_name": globals.tranporter_session_power_flag_name})
+
     self.log("Change lamps input select stage 1.")
-    self.select_option(globals.lounge_lamps_input_select, globals.dining_lamp)
+    #self.select_option(globals.lounge_lamps_input_select, globals.dining_lamp)
     self.log("Change lamps input select stage 2.")
     # Is it dark?:
     dark_state = self.get_state(globals.dark_sensor)
     if dark_state == "on":
       self.turn_on("scene.exit_stage_left")
+    self.log("Change lamps input select stage 3.")
 
   def away_automations(self):
     self.log("Away automations.")
