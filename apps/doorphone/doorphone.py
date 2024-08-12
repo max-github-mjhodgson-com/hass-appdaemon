@@ -81,6 +81,7 @@ class Doorphone(hass.Hass):
     # State monitors
     self.new_event_handler1 = self.listen_state(self.on_event_detected, self.doorphone_event_type, old = "0", new = "900")
     self.new_event_handler2 = self.listen_state(self.on_event_detected, self.doorphone_event_type, old = "0", new = "1102")
+
     self.card_used_handler = self.listen_state(self.on_doorphone_card_used, self.doorphone_event_type, new = "600")
     self.system_up_handler = self.listen_state(self.on_doorphone_system_up, self.doorphone_event_type, new = "1101")
     
@@ -120,12 +121,12 @@ class Doorphone(hass.Hass):
     card_number = self.get_state("sensor.doorphone_card_number")
     #self.log(card_number)
     #self.call_service("python_script/set_state", entity_id = self.doorphone_event_type, state = "0") ## Retired.
-    self.set_state(self.doorphone_event_type, state='0')
+    self.set_state(self.doorphone_event_type, state = '0')
     #self.call_service("python_script/set_state", entity_id = "sensor.doorphone_card_number", state = "0")
-    self.set_state("sensor.doorphone_card_number", state='0')
+    self.set_state("sensor.doorphone_card_number", state = '0')
     self.log("Card used: %s", card_number)
     self.call_service(globals.notify_max_all, title = self.doorphone_message_title, message = "Card used.")
-    caption_text = "Doorbell Card Used: "+card_number
+    caption_text = "Doorbell Card Used: "+ card_number
     self.take_picture(camera_location = self.camera_location, picture_type="card", picture_caption = caption_text)
     
     if card_number in globals.cards_garage_door:
@@ -147,7 +148,7 @@ class Doorphone(hass.Hass):
       self.log("New: " + new)
       if self.get_state(globals.porch_light_timer) != "active":  # If we're already in an active period, don't change brightness.
         self.log("Porch light timer is not active.")
-        porch_light_brightness = self.get_state(globals.porch_light, attribute="brightness")
+        porch_light_brightness = self.get_state(globals.porch_light, attribute = "brightness")
       porch_light_on = self.get_state(globals.porch_light)
       if porch_light_on != 'on':
         pass
@@ -155,7 +156,7 @@ class Doorphone(hass.Hass):
         self.log("Porch light is ON and it's brightness is: " + str(porch_light_brightness))
         self.call_service("timer/start", entity_id = globals.porch_light_timer, duration = "600")
         self.porch_light_timer_finished_handler = self.listen_event(self.on_porch_light_timer_finished, "timer.finished", entity_id = globals.porch_light_timer, oneshot=True, old_brightness = porch_light_brightness)
-        self.turn_on(globals.porch_light, brightness=255, transition=2)
+        self.turn_on(globals.porch_light, brightness = 255, transition = 2)
       if self.last_ring < datetime.now() - timedelta(seconds = 30):
         self.last_ring = datetime.now()
         self.log("Bell push over 30 seconds.")
@@ -228,9 +229,10 @@ class Doorphone(hass.Hass):
       self.log("Door phone person at front (new), sending message.")
       if self.get_state("binary_sensor.internet_down") == "on":
         self.call_service(globals.max_telegram, title = "Person at front.", message = "Person at Front (new Doorphone version).")
-        self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.")
-        #self.log("URL: " + str(event_picture_url))
-        #self.call_service("telegram_bot/send_photo", url = event_picture_url, caption = "Person at front.(Doorphone)")
+        try:
+          self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.")
+        except Exception:
+          self.log("Unable to send photo via Telegram.")
         self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
                                            message = "Person Detected at Front (Click to view camera).",\
                                            data = {"channel":"Front_Door",\
@@ -238,6 +240,7 @@ class Doorphone(hass.Hass):
                                                    "image":event_picture_url,\
                                                    "clickAction": globals.lovelace_cctv_tab })
       else:
+        # Use SMS if the internet is down.
         self.call_service("notify/max_sms", message = "Person detected at front door (no internet).")
     else:
       self.log("Person detection is switched off.")
@@ -256,7 +259,6 @@ class Doorphone(hass.Hass):
   def system_rebooted(self):
     reboot_title = "Door Phone Alert (Reboot)."
     reboot_message = "Door Phone System Rebooted."
-    self.log(reboot_message)
     #self.call_service("python_script/set_state", entity_id = self.doorphone_event_type, state = "0")  # Retired.
     self.set_state(self.doorphone_event_type, state = '0')
     is_it_reboot_time = self.get_state(globals.doorphone_reboot_time_sensor)
