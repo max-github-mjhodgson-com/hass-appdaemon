@@ -26,13 +26,9 @@ class Cctv(hass.Hass):
     
     self.mqtt = self.get_plugin_api("MQTT")
     
-    #Set up some variables:
+    # Setup some variables:
     self.frigate_camera_url = "http://" + globals.frigate_hostname + ":" + globals.frigate_port + "/api/"  #+ camera_location +"/latest.jpg
-    #self.get_picture_from_frigate("front_doorbell", "card")
-
     
-    #self.set_value(globals.front_motion_detection_off_input_number, 0)
-
     # Load external app libraries:
     self.function_library = self.get_app("function_library")
 
@@ -41,10 +37,15 @@ class Cctv(hass.Hass):
     self.person_detection_switch_on_handler = self.listen_state(self.on_switch_on_person_detection, globals.front_doorbell_person_detection_switch, old = "on", new = "off", duration = 3600)
 
     # Event monitors:
-    self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic="frigate/events")
+    self.mqtt.listen_event(self.on_mqtt_message_received_event, "MQTT_MESSAGE", topic = "frigate/events")
     self.listen_state(self.on_front_motion_detect_on_off, globals.front_motion_detection_off_input_number)
     self.listen_state(self.on_front_motion_detect_on_off, globals.front_doorbell_person_detection_switch)
-    sunset_time_handler = self.run_at_sunset(self.run_sunset_tasks)
+    sunset_time_handler = self.run_at_sunset(self.on_run_sunset_tasks)
+
+    # Test area:
+    #self.get_picture_from_frigate("front_doorbell", "card")
+    #self.set_value(globals.front_motion_detection_off_input_number, 0)
+    #self.run_in(self.send_an_event_video_via_telegram, 2, video_url = "https://test-url/api/events/1722256694.648559-r8r7ar/clip.mp4", caption = "Person at front (video clip).")
 
 
 ###############################################################################################################
@@ -58,16 +59,17 @@ class Cctv(hass.Hass):
   def on_mqtt_message_received_event(self, eventname, data, *args):
   # http://<URL>:8123/api/frigate/notifications/1658731657.459786-3jnewn/snapshot.jpg
     self.log("MQTT (CCTV App)")
+    # These variables are for the payload "eval" below.
     true = 1  # Do not remove.
     false = 0  # Do not remove.
-    null = "null"
-    media_base_path = globals.cctv_media_location
+    null = "null" # Do not remove.
+    #media_base_path = globals.cctv_media_location
     video_base_url = "https://" + globals.frigate_external_hostname + "/api/events/"
     picture_url = "https://" + globals.home_assistant_url + "/api/frigate/notifications/"
     payload = eval(data['payload'])
     #event_camera = data['topic']['before']['camera']
     #event_label = data['topic']['before']['label']
-    self.log("Payload: " + str(payload))
+    #self.log("Payload: " + str(payload))
     event_id_before = payload['before']['id']
     event_camera_before = payload['before']['camera']
     event_id_after = payload['after']['id']
@@ -92,16 +94,14 @@ class Cctv(hass.Hass):
     if event_label_before == "person":
       if event_type == "new":
         self.log("Number of persons in zone: " + str(self.get_state(globals.persons_in_zone_count[event_camera_before])))
-        #self.call_service("device_tracker/see", dev_id = globals.max_phone_tracker)
-        #for i in range(len(globals.mobile_app_users)):
-        #  self.call_service(globals.mobile_app_users[i], message = "request_location_update")
         self.call_service(globals.max_app, message = "request_location_update")
-        self.log("Sending start image.(New Version, via telegram.)")
+        self.log("Sending start image. (New Version, via telegram.)")
         picture_url_begin = picture_url + event_id_before + "/snapshot.jpg"
         self.log("Image URL: " + picture_url_begin)
         if self.get_state(globals.front_doorbell_person_detection_switch) == "on":
           self.log("Detection switched on sending image.")
-          self.call_service("telegram_bot/send_photo", url = picture_url_begin, caption = "Person at front (New Version CCTV).")
+          send_photo_result = self.call_service("telegram_bot/send_photo", url = picture_url_begin, caption = "Person at front (New Version CCTV).", return_result = True)
+          self.log("Send photo result: " + str(send_photo_result))
           self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
                                              message = "Person at Front Door",\
                                              data = {"channel":"Front_Door",\
@@ -112,7 +112,6 @@ class Cctv(hass.Hass):
                                              data = {"media_stream": "alarm_stream",\
                                                      "tts_text": "Person detected at the front.",\
                                                      "timeout": 60 })
-
       if event_type == "end":
         self.log("Entered zones after: " + str(event_entered_zones_after))
         self.log("Sending end image (via telegram).")
@@ -123,19 +122,15 @@ class Cctv(hass.Hass):
         # Todo: Store a latest picture in the media directory.
         front_door_detection_switch_status = self.get_state(globals.front_doorbell_person_detection_switch)
         if front_door_detection_switch_status == "on":
-          self.log("Detection switch status (end image): " + str(front_door_detection_switch_status))
-
+          #self.log("Detection switch status (end image): " + str(front_door_detection_switch_status))
           #self.call_service("telegram_bot/send_photo", disable_notification = "yes", url = picture_url_end, caption = video_url)
           #self.call_service("telegram_bot/send_video", disable_notification = "yes", timeout = "yes", url = video_url, caption = "Person at front (video clip).")
+          self.run_in(self.send_an_event_video_via_telegram, 2, video_url = video_url, caption = "Person at front (video clip).")
           self.call_service(globals.max_app, title = "Doorphone Alert (New) end image",\
                                              message = "Person at Front Door",\
                                              data = {"channel":"Front_Door",\
                                                      "clickAction":globals.lovelace_cctv_tab ,\
                                                      "image": picture_url_end})
-
-    # + event_camera + event_label)
-    #event_type = data['topic']['after']['type']
-    #self.log(event_type)
 
   def on_front_motion_detect_on_off(self, entity, attribute, old, new, cb_args):
     self.log("Motion detect off select.")
@@ -148,7 +143,7 @@ class Cctv(hass.Hass):
       elif entity == globals.front_motion_detection_off_input_number:
         self.log("Detection minute timer activated.")
 
-  def run_sunset_tasks(self, kwargs):
+  def on_run_sunset_tasks(self, cb_args):
     self.turn_on(globals.front_doorbell_person_detection_switch)
 
 ###############################################################################################################
@@ -180,12 +175,9 @@ class Cctv(hass.Hass):
     with open(image_filename, 'wb') as handler:
       handler.write(img_data)
       handler.close
-      
 
   def send_an_alert(self, **kwargs):
-    #self.log("Send an alert.")
     alert_switch_status = self.get_state(globals.front_doorbell_person_detection_switch)
-    #self.log("Alert switch status: " + str(alert_switch_status))
     if self.get_state(alert_switch_status) == "on":
       self.log("Sending an alert.")
       self.log("Kwargs: " + str(kwargs))
@@ -193,8 +185,18 @@ class Cctv(hass.Hass):
       zone = kwargs["zone"]
       object = kwargs["detected_object"]
       #self.log("Event ID: " +str(event))
-      self.log("Zone(s) entered: " + str(zone))
-      self.log("Detected object: " + str(object))
+      #self.log("Zone(s) entered: " + str(zone))
+      #self.log("Detected object: " + str(object))
+      msg = "Zone(s) entered: " + str(zone) + "\n"
+      msg += "Detected object: " + str(object)
+      self.log(msg)
+      self.call_service("telegram_bot/send_message", message = msg)
+
+  def send_an_event_video_via_telegram(self, cb_args):
+    video_url = cb_args["video_url"]
+    caption = cb_args["caption"]
+    # Disabeld - Not working in Home Assistant.
+    #self.call_service("telegram_bot/send_video", disable_notification = "yes", timeout = "yes", url = video_url, caption = caption)
 
   def camera_object_detect_on_off(self, camera_name, detect_state):
     self.log("Switching camera object detection: " + str(detect_state) + " for camera: " + str(camera_name))
