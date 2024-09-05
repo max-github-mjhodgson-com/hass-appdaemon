@@ -9,6 +9,7 @@ mobile_app_users = secrets.mobile_app_users
 
 # Max
 person_max = secrets.person_max
+maxs_cars = secrets.maxs_cars
 max_phone = secrets.max_phone
 max_phone_tracker = secrets.max_phone
 user01_automation_library = secrets.user01_automation_library
@@ -452,7 +453,8 @@ washing_machine_completed = "program_ended"
 
 # Weather:
 #weather = "weather.accuweather"
-weather = "sensor.pirateweather_precip"
+#weather = "sensor.pirateweather_precip"
+weather = "sensor.b3_met_office_saltdean_beach_weather_3_hourly"
 has_it_rained_today_switch = "input_boolean.has_it_been_raining"
 wind_bearing = "sensor.pirateweather_wind_bearing"
 wind_direction_sensor = "sensor.pirateweather_wind_direction"

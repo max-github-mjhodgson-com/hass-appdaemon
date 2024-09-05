@@ -22,8 +22,53 @@ class MiscAutomations(hass.Hass):
     self.sab_api_uri = globals.sabnzbd_url + "/sabnzbd/api?apikey=" + globals.sabnzbd_api_key + "&output=json"
     self.sab_pause_and_resume = "&mode=config&name=set_pause&value="
     self.sab_pause_duration_in_minutes = 930
-    self.weather = "weather.home"
-
+    self.weather = globals.weather # Another temp fix until I can get a reliable weather API.
+    
+    self.travel_times_new = { "sensor.drive_from_home_to_work": { "default_travel_time": 20, 
+                                                                  "car_location_id": globals.maxs_cars,
+                                                                  "start_locations": ["Home", "Home_b"],
+                                                                  "notification": "placeholder",
+                                                                  "work_day_level": 0,
+                                                                  "work_day_person": "max",
+                                                                  "time_range_sensor": "binary_sensor.travel_time_test",
+                                                                  "alert_sent": False,
+                                                                  "enabled": True,
+                                                                  "handler": ""
+                                                                },
+                              "sensor.drive_from_work_to_home": { "default_travel_time": 30,
+                                                                  "car_location_id": globals.maxs_cars,
+                                                                  "start_locations": ["zone.car_park_work"],
+                                                                  "notification": "placeholder",
+                                                                  "work_day_level": 0,
+                                                                  "work_day_person": "max",
+                                                                  "time_range_sensor": "binary_sensor.leave_for_work",
+                                                                  "alert_sent": False,
+                                                                  "enabled": True,
+                                                                  "handler": ""
+                                                                },
+                              "sensor.drive_from_pbm_to_home":    { "default_travel_time": 30,
+                                                                  "car_location_id": globals.maxs_cars,
+                                                                  "start_locations": ["zone.pbm"],
+                                                                  "notification": "placeholder",
+                                                                  "work_day_level": 2,
+                                                                  "work_day_person": "max",
+                                                                  "time_range_sensor": "binary_sensor.travel_time_pbm_to_home",
+                                                                  "alert_sent": False,
+                                                                  "enabled": True,
+                                                                  "handler": ""
+                                                                },
+                              "sensor.drive_from_home_to_pbm": { "default_travel_time": 30,
+                                                                  "car_location_id": globals.maxs_cars,
+                                                                  "start_locations": ["Home", "Home_b"],
+                                                                  "notification": "placeholder",
+                                                                  "work_day_level": 2,
+                                                                  "work_day_person": "max",
+                                                                  "time_range_sensor": "binary_sensor.travel_time_home_to_pbm",
+                                                                  "alert_sent": False,
+                                                                  "enabled": True,
+                                                                  "handler": ""
+                                                                }
+                            }
     # Load external AppDaemon libraries:
     self.function_library = self.get_app("function_library")
 
@@ -43,7 +88,12 @@ class MiscAutomations(hass.Hass):
     self.listen_state(self.on_wind_direction_change, globals.wind_bearing)
     self.listen_state(self.on_hub_power_switched_off, globals.draytek_router_power, old = "on", new = "off", duration = "30")
     self.listen_state(self.on_hub_power_switched_off, globals.unifi_main_switch_power, old = "on", new = "off", duration = "30")
-
+    for travel_time_monitors in self.travel_times_new.keys():
+      travel_time_enable = self.travel_times_new[travel_time_monitors]["enabled"]
+      if travel_time_enable == True:
+        self.log("Adding listen_state for: " + str(travel_time_monitors))
+        self.travel_times_new[travel_time_monitors]["handler"] = self.listen_state(self.on_travel_time_delays, travel_time_monitors, immediate = True)
+  
     # Event Monitors:
     self.listen_event(self.on_telegram_text_received, entity_id = globals.telegram_input_text_message, domain = "input_text")
 
@@ -62,7 +112,7 @@ class MiscAutomations(hass.Hass):
       self.log("Old: " + str(old))
       self.log("New: " + str(new))
       #self.run_in(self.on_weather_change_cb, 1)
-      bad_weather_conditions = ["rain", "pour", "pouring", "drizzle"]
+      bad_weather_conditions = ["rain", "rainy", "pour", "pouring", "drizzle"]
       current_condition = self.get_state(self.weather)
       if current_condition in bad_weather_conditions:
         self.log("It has been raining.")
@@ -82,7 +132,6 @@ class MiscAutomations(hass.Hass):
                                                      "media_stream": "alarm_stream",\
                                                      "tts_text": "There is a thunderstorm nearby.",\
                                                     })
-    
 
   def run_at_midnight_tasks(self, cb_args):
     self.log("Reset rain sensor.")
@@ -142,8 +191,7 @@ class MiscAutomations(hass.Hass):
     self.log("Wind direction: " + str(direction))
     self.set_state(globals.wind_direction_sensor, state = direction, attributes = {"friendly_name": "Wind Direction"})
 
-
-  def on_hub_power_switched_off(self, entity, attribute, old, new, kwargs):
+  def on_hub_power_switched_off(self, entity, attribute, old, new, cb_args):
     power_entity = entity
     self.log("Power switched off for 30 seconds: " + str(power_entity))
     self.log("Powering back on.")
@@ -155,6 +203,59 @@ class MiscAutomations(hass.Hass):
     uri = self.sab_api_uri + api_resume
     self.pause_and_set_sabnzbd_resume_time(uri)
 
+  # This utilises the Waze travel time integration within Home Assistant.
+  # The integration returns a number of minutes for a specific route. If the number of minutes is above a threshold,
+  # it will raise an mobile phone alert.
+  # Each route has it's own notification flag, so as not to bombard the user with multiple alerts.
+  # It will only alert when the car is in the start location and the time of day sensor is on
+  # (e.g. will only alert if the time is applicable for the journey).
+  # Can be used for multiple users.
+  # 
+  def on_travel_time_delays(self, entity, attribute, old, new, cb_args):
+    #self.log("Travel time change.")
+    if old != "unavailable" and (new != "unavailable" and new != None):
+      self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
+      if new != None:
+        new_travel_time = int(new)
+        if entity in self.travel_times_new.keys():
+          travel_time = self.travel_times_new[entity]["time_range_sensor"]
+          start_locations = self.travel_times_new[entity]["start_locations"]
+          alert_sent = self.travel_times_new[entity]["alert_sent"]
+          #self.log(alert_sent)
+          if self.get_state(travel_time) == "on":
+            car_location_id = self.travel_times_new[entity]["car_location_id"]
+            for car_location_tmp in car_location_id:
+              #self.log("Car location tmp: " + str(car_location_tmp))
+              car_location_state = self.get_state(car_location_tmp)
+              if car_location_state in start_locations:
+                #self.log("Found: " + str(car_location_state))
+                car_location = car_location_state
+                break
+              else:
+                continue
+              #self.log(car_location)
+            
+            work_day_level = self.travel_times_new[entity]["work_day_level"]
+            work_day_person = self.travel_times_new[entity]["work_day_person"]
+            working_day_return_code, working_day = self.function_library.is_it_a_work_day_today(work_day_person)
+            if working_day_return_code == work_day_level and car_location in start_locations:
+              travel_time_lookup = self.travel_times_new[entity]["default_travel_time"]
+              if new_travel_time > travel_time_lookup:
+                if alert_sent == False:
+                  self.travel_times_new[entity]["alert_sent"] = True
+                  friendly_name = self.get_state(entity, attribute = "friendly_name").lower()
+                  self.log("Travel time for " + friendly_name + " has delays. " + str(travel_time_lookup) + " minutes.")
+                  self.call_service(globals.max_app,  title = "There are traffic delays.",\
+                                                      message = "TTS",\
+                                                      data = {"media_stream": "alarm_stream",\
+                                                              "tts_text": "There are traffic delays."})
+                else:
+                  self.log("Alert already sent (a).")
+              if new_travel_time < travel_time_lookup:
+                if alert_sent == True:
+                  self.log("Alert already sent (b).")
+                self.travel_times_new[entity]["alert_sent"] = False
+                
   
   ###############################################################################################################
   # Other functions:
