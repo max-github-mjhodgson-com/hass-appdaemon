@@ -1,10 +1,10 @@
 # Function Library
 #
-# Version: 10052023.01
-# Max Hodgson 2023
+# Version: 06092024.01
+# Max Hodgson 2024
 #
 # Provides some global functions.
-# These can be called from the other apps.
+# These can be called from other apps.
 #
 #
 import appdaemon.plugins.hass.hassapi as hass
@@ -45,7 +45,7 @@ class FunctionLibrary(hass.Hass):
     # To do: have options for a group.
     # Set default return codes.
     working_day_return_code = 0
-    working_day="off"
+    working_day = "off"
 
     # Check the person's calendar.
     if self.get_state(globals.vacation_calendars[person]) == "on":  # On holiday (From work).
@@ -83,19 +83,28 @@ class FunctionLibrary(hass.Hass):
     self.call_service("alert/turn_off", alert_entity_id)
 
   def degrees_to_cardinal(self, d):
-    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-    x = int((d/22.5)+.5)
-    return dirs[x % 16]
+    wind_directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW", "N"]
+    cardinal = wind_directions[round(d / 22.5)]
+    return cardinal
 
   def get_wind_direction(self):
-    wind_direction = self.degrees_to_cardinal(int(self.get_state(globals.wind_bearing)))
+    wind_bearing_sensor = float(self.get_state(globals.wind_bearing))
+    wind_direction = self.degrees_to_cardinal(int(wind_bearing_sensor))
     return wind_direction
 
   def input_text_event(self, event_service_data):
     text_entity_id = event_service_data["entity_id"]
     text_contents = event_service_data["value"]
     return text_entity_id, text_contents
+
+  # Gets the value of an input boolean, to determine log output. To help cut down on logfile traffic.
+  def debug(self):
+    debug_mode = self.get_state(globals.debug_switch)
+    return_code = False
+    if debug_mode == "on":
+      return_code = True
+    return return_code
 
   # Code placeholder
   def get_workdays_for_persons(self, persons):
