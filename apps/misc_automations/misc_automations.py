@@ -188,7 +188,8 @@ class MiscAutomations(hass.Hass):
   
   def on_wind_direction_change(self, entity, attribute, old, new, cb_args):
     direction = self.function_library.get_wind_direction()
-    self.log("Wind direction: " + str(direction))
+    if self.function_library.debug():
+      self.log("Wind direction: " + str(direction))
     self.set_state(globals.wind_direction_sensor, state = direction, attributes = {"friendly_name": "Wind Direction"})
 
   def on_hub_power_switched_off(self, entity, attribute, old, new, cb_args):
@@ -212,9 +213,11 @@ class MiscAutomations(hass.Hass):
   # Can be used for multiple users.
   # 
   def on_travel_time_delays(self, entity, attribute, old, new, cb_args):
-    #self.log("Travel time change.")
+    if self.function_library.debug():
+      self.log("Travel time change.")
     if old != "unavailable" and new != "unavailable" and new != None:
-      #self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
+      if self.function_library.debug():
+        self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
       car_location = ""
       if new != None:
         new_travel_time = int(new)
@@ -222,20 +225,16 @@ class MiscAutomations(hass.Hass):
           travel_time = self.travel_times_new[entity]["time_range_sensor"]
           start_locations = self.travel_times_new[entity]["start_locations"]
           alert_sent = self.travel_times_new[entity]["alert_sent"]
-          #self.log(alert_sent)
           if self.get_state(travel_time) == "on":
             car_location_id = self.travel_times_new[entity]["car_location_id"]
             for car_location_tmp in car_location_id:
-              #self.log("Car location tmp: " + str(car_location_tmp))
               car_location_state = self.get_state(car_location_tmp)
               if car_location_state in start_locations:
-                #self.log("Found: " + str(car_location_state))
                 car_location = car_location_state
                 break
               else:
                 continue
               self.log(car_location)
-            
             work_day_level = self.travel_times_new[entity]["work_day_level"]
             work_day_person = self.travel_times_new[entity]["work_day_person"]
             working_day_return_code, working_day = self.function_library.is_it_a_work_day_today(work_day_person)
