@@ -1,6 +1,10 @@
 # Global Variables
 #
-# Imports secrets.
+# Imports secrets_module.py
+# The format of secrets is the same as this one.
+# The variables can then be refered to as secrets.variable to be able to use them.
+# Secrets is not uploaded to the git repo.
+#
 import appdaemon.plugins.hass.hassapi as hass
 import secrets_module as secrets
 
@@ -17,6 +21,9 @@ working_day_template = secrets.working_day_template
 working_day_max = secrets.working_day_template + "max"
 telegram_chat_id = secrets.telegram_chat_id
 log_partition_line_length = 40
+
+# Debug switch:
+debug_switch = "input_boolean.appdaemon_debug"
 
 # Main URL
 home_assistant_url = secrets.home_assistant_hostname
@@ -454,7 +461,7 @@ washing_machine_completed = "program_ended"
 # Weather:
 #weather = "weather.accuweather"
 #weather = "sensor.pirateweather_precip"
-weather = "sensor.b3_met_office_saltdean_beach_weather_3_hourly"
+weather = secrets.weather
 has_it_rained_today_switch = "input_boolean.has_it_been_raining"
 wind_bearing = "sensor.pirateweather_wind_bearing"
 wind_direction_sensor = "sensor.pirateweather_wind_direction"
