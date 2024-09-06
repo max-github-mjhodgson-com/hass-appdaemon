@@ -213,8 +213,9 @@ class MiscAutomations(hass.Hass):
   # 
   def on_travel_time_delays(self, entity, attribute, old, new, cb_args):
     #self.log("Travel time change.")
-    if old != "unavailable" and (new != "unavailable" and new != None):
-      self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
+    if old != "unavailable" and new != "unavailable" and new != None:
+      #self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
+      car_location = ""
       if new != None:
         new_travel_time = int(new)
         if entity in self.travel_times_new.keys():
@@ -233,7 +234,7 @@ class MiscAutomations(hass.Hass):
                 break
               else:
                 continue
-              #self.log(car_location)
+              self.log(car_location)
             
             work_day_level = self.travel_times_new[entity]["work_day_level"]
             work_day_person = self.travel_times_new[entity]["work_day_person"]
