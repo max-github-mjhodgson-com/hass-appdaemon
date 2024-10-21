@@ -54,6 +54,7 @@ class Garage(hass.Hass):
     # Setup variables:
     self.run_in_the_future_handler = 0
     self.airgap_close_handler = 0
+    self.air_gap_time_delay = 1.7
 
     # State monitors
     self.listen_state(self.on_garage_door_open, globals.garage_door_entity, new = "open", old = "closed", immediate = True)
@@ -85,6 +86,7 @@ class Garage(hass.Hass):
   def on_garage_door_open(self, entity, attribute, old, new, cb_args):
     self.log("Garage Door Opened.")
     self.log("Cancelling 'open time' listener.")
+    anyone_at_home = self.function_library.is_house_occupied()
     try:
       self.cancel_listen_event(self.garage_open_time_handler)
     except Exception:
@@ -95,7 +97,7 @@ class Garage(hass.Hass):
       self.log("Open time listener was cancelled.")
     self.garage_close_time_handler = self.listen_state(self.on_close_time_select, globals.garage_input_number_garage_close_timer)
     #self.garage_door_timer_handler = self.listen_event(self.on_garage_door_no_motion_timer_finished, "timer.finished", entity_id =  "timer.garage_door_auto_close_no_motion" )
-    if self.function_library.is_house_occupied() != 1:  # 0 is Out, 1 is Home, 2 is Asleep.
+    if anyone_at_home != 1:  # 0 is Out, 1 is Home, 2 is Asleep.
       door_power_state = self.get_state(globals.garage_door_power_switch)
       if door_power_state == 'off':
         self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage Door has been forced OPEN (without power).")
@@ -114,10 +116,8 @@ class Garage(hass.Hass):
     self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer)
     #self.set_value("input_boolean.garage_airgap", 'off')  # This needs an "open" and "closed" identifier.
 
-    if self.get_state("input_boolean.garage_airgap") != 'on':
-      self.log("garage_airgap is off.")
-      dark_state = self.get_state('binary_sensor.dark')
-      self.log(dark_state)
+    if self.get_state(globals.garage_input_boolean_garage_airgap) != 'on':
+      dark_state = self.get_state(globals.dark_sensor)
       if dark_state == 'on':
         self.log("Garage open and it's dark.")
         self.garage_light_on()
@@ -127,31 +127,31 @@ class Garage(hass.Hass):
 
   # When Garage Door Closes.
   def on_garage_door_closed(self, entity, attribute, old, new, cb_args):
-    self.log("Garage door closed.")
-    self.log("Cancelling close time listener.")
-    try:
-      self.cancel_listen_event(self.garage_close_time_handler)
-    except Exception:
-      self.log("No close time event being listened for.")
-    else:
-      self.set_value(globals.garage_input_number_garage_close_timer, 0)
-    finally:
-      self.log("Close time listener was cancelled.")
-    self.garage_open_time_handler = self.listen_state(self.on_open_time_select, globals.garage_input_number_garage_open_timer)
-    if self.function_library.is_house_occupied() == 0:  # 0 is Out, 1 is Home, 2 is Asleep. 
-      self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage Door has been CLOSED.")
-    self.call_service(globals.max_app, title = "Garage Alert",\
-                                       message = "Garage Door Closed.",\
-                                       data = {"channel":"Garage",\
-                                               "tag":globals.garage_door_alert_tag,\
-                                               "actions":[globals.android_app_action_switch_off_garage_door,\
-                                                          globals.android_app_action_open_garage_door\
-                                                         ]\
-                                              }\
+     self.log("Garage door closed.")
+     self.log("Attempting to cancel close time listener.")
+     try:
+       self.cancel_listen_event(self.garage_close_time_handler)
+     except Exception:
+       self.log("No close timer event being listened for.")
+     else:
+       self.set_value(globals.garage_input_number_garage_close_timer, 0)
+       self.log("Close time listener was cancelled.")
+     self.garage_open_time_handler = self.listen_state(self.on_open_time_select, globals.garage_input_number_garage_open_timer)
+     if old == "open":
+      if self.function_library.is_house_occupied() == 0:  # 0 is Out, 1 is Home, 2 is Asleep. 
+       self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage Door has been CLOSED.")
+      self.call_service(globals.max_app, title = "Garage Alert",\
+                                         message = "Garage Door Closed.",\
+                                         data    = {"channel":"Garage",\
+                                                    "tag":globals.garage_door_alert_tag,\
+                                                    "actions":[globals.android_app_action_switch_off_garage_door,\
+                                                               globals.android_app_action_open_garage_door\
+                                                              ]\
+                                                    }\
                       )
-    self.call_service("timer/cancel", entity_id = globals.garage_door_no_motion_timer)
-    self.call_service("timer/start", entity_id = globals.garage_door_power_timer)
-    self.turn_off("input_boolean.garage_airgap")
+     self.call_service("timer/cancel", entity_id = globals.garage_door_no_motion_timer)
+     self.call_service("timer/start", entity_id = globals.garage_door_power_timer)
+     self.turn_off(globals.garage_input_boolean_garage_airgap)
   
   def on_garage_light_on(self, entity, attribute, old, new, cb_args):
     self.log("Garage Light Turned ON.")
@@ -162,16 +162,17 @@ class Garage(hass.Hass):
     self.call_service("timer/cancel", entity_id = globals.garage_light_timer)
     
   def on_garage_door_power_off(self, entity, attribute, old, new, cbargs):
-    self.log("Garage door powered OFF.")
-    if self.function_library.is_house_occupied() != 1:  # If house is occupied, don't send a Telegram message.
-      self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage door power switched OFF.")
-    self.call_service(globals.max_app, title = "Garage Alert",\
+    if old == "on":
+      self.log("Garage door powered OFF.")
+      if self.function_library.is_house_occupied() != 1:  # If house is occupied, don't send a Telegram message.
+        self.call_service(globals.max_telegram, title = "Garage Alert", message = "Garage door power switched OFF.")
+      self.call_service(globals.max_app, title = "Garage Alert",\
                                        message = "Garage door power switched OFF",\
                                        data = {"channel":"Garage",\
                                                "tag":globals.garage_door_alert_tag\
                                               }\
                       )
-    self.call_service("timer/cancel", entity_id = globals.garage_door_power_timer)
+      self.call_service("timer/cancel", entity_id = globals.garage_door_power_timer)
     
   def on_garage_door_power_on(self, entity, attribute, old, new, cb_args):
     self.log("Garage Door Powered ON.")
@@ -198,7 +199,7 @@ class Garage(hass.Hass):
     self.switch_off_garage_door()
 
   # Long term timer timeout, close the garage door.
-  def on_garage_door_no_motion_timer_finished(self, event, data, kwargs):
+  def on_garage_door_no_motion_timer_finished(self, event, data, cb_args):
     self.log("Garage door no-motion longterm timer finished.")
     door_open_closed_state = self.get_state(globals.garage_door_entity)
     if door_open_closed_state != "closed":
@@ -262,44 +263,43 @@ class Garage(hass.Hass):
   def on_motion_detected(self, entity, attribute, old, new, cb_args):
     if old != "unavailable" and new != "unavailable":
       self.log("Garage Motion Detected.")
-      dark_state = self.get_state('binary_sensor.dark')
+      dark_state = self.get_state(globals.dark_sensor)
       door_state = self.get_state(globals.garage_door_entity)
       anyone_home = self.function_library.is_house_occupied()
-      if door_state == "closed":
-        self.log("Garage door is CLOSED.")
-        house_mode = self.get_state(globals.house_mode_selector)
-        if house_mode == "Just Arrived":
-          self.log("Just arrived, switching on garage door power.")
-          self.switch_on_garage_door()
-        if anyone_home == 1:
-          light_level = self.get_state(globals.garage_light_sensor)
-          if str(light_level) != "unavailable":
-            if int(float(light_level)) < 200:
+      garage_airgap = self.get_state(globals.garage_input_boolean_garage_airgap)
+      match door_state:
+        case "closed":
+          self.log("Garage door is CLOSED.")
+          house_mode = self.get_state(globals.house_mode_selector)
+          if anyone_home == 1:
+            light_level = self.get_state(globals.garage_light_sensor)
+            if str(light_level) != "unavailable":
+              if int(float(light_level)) < 200:
+                self.garage_light_on()
+                self.call_service("timer/start", entity_id = globals.garage_light_timer, duration = globals.garage_light_off_timer_duration)
+              else:
+                self.log("Light level high.")
+            power_state = self.get_state(globals.garage_door_power_switch)
+            if power_state == "On":
+              self.log("Garage door power is on, extending timer.")
+              self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = globals.garage_door_power_timer_duratio)
+          else:
+            self.log("Garage PIR Sensor Actvated.")
+            self.call_service(globals.max_telegram, title = "Garage Alert", message = "PIR Sensor detected motion in the garage.")
+        case "open":
+          self.log("Garage door is OPEN.")
+          close_timer_state = "null"
+          if anyone_home == 1:
+            self.log("Reset close timer.")
+            close_timer_state = self.get_state(globals.garage_door_no_motion_timer)
+          if close_timer_state != "paused":
+            self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = globals.garage_door_no_motion_timer_duration)
+          if dark_state == 'on':
+            if anyone_home == 1:
+              self.log("Door OPEN and it's dark (and someone is at home).")
               self.garage_light_on()
-              self.call_service("timer/start", entity_id = globals.garage_light_timer, duration = globals.garage_light_off_timer_duration)
             else:
-              self.log("Light level high.")
-          power_state = self.get_state(globals.garage_door_power_switch)
-          if power_state == "On":
-            self.log("Garage door power is on, extending timer.")
-            self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = globals.garage_door_power_timer_duratio)
-        else:
-          self.log("Garage PIR Sensor Actvated.")
-          self.call_service(globals.max_telegram, title = "Garage Alert", message = "PIR Sensor detected motion in the garage.")
-      elif door_state == "open":
-        self.log("Garage door is OPEN.")
-        close_timer_state = "null"
-        if anyone_home == 1:
-          self.log("Reset close timer.")
-          close_timer_state = self.get_state(globals.garage_door_no_motion_timer)
-        if close_timer_state != "paused":
-          self.call_service("timer/start", entity_id = globals.garage_door_no_motion_timer, duration = globals.garage_door_no_motion_timer_duration)
-      if door_state == "open" and dark_state == 'on':
-        if anyone_home == 1:
-          self.log("Door OPEN and it's dark (and someone is at home).")
-          self.garage_light_on()
-        else:
-          self.log("Door OPEN and it's dark (and nobody is at home).")
+              self.log("Door OPEN and it's dark (and nobody is at home).")
   
   # Motion has ceased to be detected.
   def on_motion_not_detected(self, entity, attribute, old, new, cb_args):
@@ -356,18 +356,21 @@ class Garage(hass.Hass):
     self.open_garage()
 
   def on_run_open_air_gap_step_one(self, cb_args):
-    self.log("Air gap step 1a.")
+    #self.log("Air gap step 1a.")
     current_house_mode = self.get_state(globals.house_mode_selector)
     if current_house_mode in ["away"]:
       self.log("House is in Away mode. Not opening airgap.")
     else:
+      #self.log("Air gap step 1b.")
       self.open_garage()
-      time.sleep(1.5)
+      time.sleep(self.air_gap_time_delay)
+      #self.log("Air gap step 1c.")
       self.close_garage() # This doesn't actually close the door, it just presses the close button to stop the door mid-flight. 
+      #self.log("Air gap step 1d.")
       self.run_in(self.on_run_open_air_gap_step_two, 30)
 
-
   def on_run_open_air_gap_step_two(self, cb_args):
+    #self.log("Air gap step 2a.")
     current_house_mode = self.get_state(globals.house_mode_selector)
     #self.call_service("timer/start", entity_id = globals.garage_door_power_timer, duration = "18000") # 5 Hours.
     if current_house_mode in ["out"]:
@@ -380,36 +383,36 @@ class Garage(hass.Hass):
 ###############################################################################################################
 
   def close_garage(self):
-    self.log("Garage Door CLOSE function called.")
+    self.log("Garage door close function called.")
     self.call_service("cover/close_cover", entity_id = globals.garage_door_entity, return_result = False)
 
   def open_garage(self):
-    self.log("Garage Door OPEN function called.")
+    self.log("Garage door open function called.")
     self.call_service("cover/open_cover", entity_id = globals.garage_door_entity, return_result = False)
 
   def garage_light_off(self):
-    self.log("Garage Light OFF function called.")
+    self.log("Garage light off function called.")
     self.turn_off(globals.garage_light_entity)
     self.call_service("timer/cancel", entity_id = globals.garage_light_timer)
 
   def garage_light_on(self):
-    self.log("Garage Light ON function called.")
+    self.log("Garage light on function called.")
     self.turn_on(globals.garage_light_entity)
     self.call_service("timer/start", entity_id = globals.garage_light_timer)
 
   def switch_off_garage_door(self):
-    self.log("Garage Door Power OFF function called.")
+    self.log("Garage door power off function called.")
     self.turn_off(globals.garage_door_power_switch)
 
   def switch_on_garage_door(self):
-    self.log("Garage Door Power ON function called.")
+    self.log("Garage door power on function called.")
     self.turn_on(globals.garage_door_power_switch)
 
   def power_on_and_open_garage(self):
-    self.log("Power ON and OPEN garage door.")
+    self.log("Power on and open garage door.")
     door_state = self.check_if_garage_closed()
     if door_state == "open":
-      self.log("Garage door is already OPEN.")
+      self.log("Garage door is already open.")
     else:
       self.log("Garage door is closed, will power on and open.")
       self.switch_on_garage_door()
@@ -439,7 +442,7 @@ class Garage(hass.Hass):
         self.call_service(globals.max_telegram, title = "Garage Alert", message = garage_door_not_closed_alert_text)
         self.close_garage()
     else:
-      self.log("Power OFF door.")
+      self.log("Power off door.")
       self.switch_off_garage_door()
 
   # Open a small gap in the main door to allow airflow.
