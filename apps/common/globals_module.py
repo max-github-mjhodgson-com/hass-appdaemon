@@ -22,6 +22,9 @@ working_day_max = secrets.working_day_template + "max"
 telegram_chat_id = secrets.telegram_chat_id
 log_partition_line_length = 40
 
+# Ping updates
+device_tracker_pings = secrets.device_tracker_pings #  A dictionary of device_tracker entries.
+
 # Debug switch:
 debug_switch = "input_boolean.appdaemon_debug"
 
@@ -97,6 +100,7 @@ squeezebox_power_off_duration = "7200"
 squeezebox_dining = "media_player.dining_room"
 squeezebox_spare_bedroom = "media_player.spare_bedroom"
 squeezebox_transporter = "media_player.transporter"
+squeezebox_pioneer_amp = "media_player.pioneer_amp"
 #squeezebox_transporter_power = "switch.teckin07"
 squeezebox_transporter_power = "switch.xenon01_l3"
 squeezebox_transporter_timer = "timer.squeezebox_transporter_auto_power_off"
@@ -112,12 +116,20 @@ players = { "lounge":       {
                                 "remote_amp": "pioneer_amp",
                                 "remote_amp_input": "input_tuner",
                                 "remote_type": "ir",
+                                "local": True,
+                                "off_duration": 3600,
+                                "idle_duration": 600,
+                                "paused_duration": 600,
                             },
             "spare_bedroom": {
                                 "squeezebox_id": squeezebox_spare_bedroom,
                                 #"power": "none",
                                 "friendly_name": "Spare Bedroom Radio",
                                 "friendly_location": "Spare Bedroom",
+                                "local": True,
+                                "off_duration": 2,
+                                "idle_duration": 600,
+                                "paused_duration": 600,
                             },
             "dining_room": { 
                                 "squeezebox_id": squeezebox_dining,
@@ -128,8 +140,12 @@ players = { "lounge":       {
                                 "remote_amp": "pioneer_amp",
                                 "remote_amp_input": "input_ld",
                                 "remote_type": "ir",
+                                "local": True,
+                                "off_duration": 3600,
+                                "idle_duration": 600,
+                                "paused_duration": 600,
                             },
-            "office": { 
+            "office":       {
                                 "squeezebox_id": squeezebox_office,
                                 "power": "none",
                                 "friendly_name": "Office",
@@ -138,7 +154,26 @@ players = { "lounge":       {
                                 "remote_amp": "none",
                                 "remote_amp_input": "none",
                                 "remote_type": "none",
-                            }
+                                "local": False,
+                                "off_duration": 2,
+                                "idle_duration": 600,
+                                "paused_duration": 600,
+                            },
+            "pioneer_amp": {
+                                "squeezebox_id": squeezebox_pioneer_amp,
+                                "power": "none",
+                                "power_off_timer": "none",
+                                "friendly_name": "Pioneer Amplifier",
+                                "friendly_location": "Lounge",
+                                "remote_location": "remote.lounge",
+                                "remote_amp": "pioneer_amp",
+                                "remote_amp_input": "input_vcr_1",
+                                "remote_type": "ir",
+                                "local": True,
+                                "off_duration": 3600,
+                                "idle_duration": 600,
+                                "paused_duration": 600,
+                            },
           }
 playlists = secrets.playlists
 tv_power = "switch.teckin05"
@@ -247,6 +282,7 @@ switch_cab_usb_power = "switch.silvercrest02_l3"
 vacation_calendars = { "max": secrets.vacation_max}
 away_calendars = { "max": secrets.away_max}
 house_calendar = secrets.house_calendar
+non_working_days_csv_path = "/config/apps/misc_automations/non_working_days.csv"
 
 workday_sensor = "binary_sensor.workday_l"
 travel_time_to_pbm = secrets.travel_time_to_pbm

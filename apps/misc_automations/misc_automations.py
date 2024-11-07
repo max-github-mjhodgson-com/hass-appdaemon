@@ -1,3 +1,10 @@
+# Misc Automations Script.
+#
+# Automations that don't fit in anywhere else.
+#
+# 2024 Max Hodgson
+# Version: 241107.01
+
 import appdaemon.plugins.hass.hassapi as hass
 
 import csv
@@ -81,6 +88,7 @@ class MiscAutomations(hass.Hass):
     self.run_daily(self.setup_working_day, "00:00:01")
     self.run_daily(self.run_at_midnight_tasks, "00:00:02")
     self.run_daily(self.on_pause_sabnzbd_during_the_day, "07:30:00")
+    self.run_every(self.ping_devices, "now", 1*60, devices = globals.device_tracker_pings)
 
     # State Monitors:
     self.listen_state(self.on_weather_change, self.weather, immediate = True)
@@ -96,7 +104,6 @@ class MiscAutomations(hass.Hass):
   
     # Event Monitors:
     self.listen_event(self.on_telegram_text_received, entity_id = globals.telegram_input_text_message, domain = "input_text")
-
     
   ###############################################################################################################
   # Callback functions:
@@ -152,7 +159,7 @@ class MiscAutomations(hass.Hass):
     #today_state = self.get_state(working_day_today_sensor)
     #self.log("today_state: " + str(today_state))
     #tomorrow_state = self.get_state(working_day_tomorrow_sensor)
-    with open('/config/appdaemon/apps/misc_automations/non_working_days.csv') as csv_file:
+    with open(globals.non_working_days_csv_path) as csv_file:
       working_day_reader = csv.reader(csv_file, delimiter = ',')
       line_count = 0
       for row in working_day_reader:
@@ -215,46 +222,48 @@ class MiscAutomations(hass.Hass):
   def on_travel_time_delays(self, entity, attribute, old, new, cb_args):
     if self.function_library.debug():
       self.log("Travel time change.")
-    if old != "unavailable" and new != "unavailable" and new != None:
+      self.log("Travel time new: " +  str(entity) + ", " + str(new))
+    if str(new) != "unavailable" and new != None:
       if self.function_library.debug():
         self.log("Travel time entity: " + str(entity) + " from: " + str(old) + " to: " + str(new))
       car_location = ""
-      if new != None:
-        new_travel_time = int(new)
-        if entity in self.travel_times_new.keys():
-          travel_time = self.travel_times_new[entity]["time_range_sensor"]
-          start_locations = self.travel_times_new[entity]["start_locations"]
-          alert_sent = self.travel_times_new[entity]["alert_sent"]
-          if self.get_state(travel_time) == "on":
-            car_location_id = self.travel_times_new[entity]["car_location_id"]
-            for car_location_tmp in car_location_id:
-              car_location_state = self.get_state(car_location_tmp)
-              if car_location_state in start_locations:
-                car_location = car_location_state
-                break
+      new_travel_time = int(new)
+      if entity in self.travel_times_new.keys():
+        travel_time = self.travel_times_new[entity]["time_range_sensor"]
+        start_locations = self.travel_times_new[entity]["start_locations"]
+        alert_sent = self.travel_times_new[entity]["alert_sent"]
+        if self.get_state(travel_time) == "on":
+          car_location_id = self.travel_times_new[entity]["car_location_id"]
+          for car_location_tmp in car_location_id:
+            car_location_state = self.get_state(car_location_tmp)
+            if car_location_state in start_locations:
+              car_location = car_location_state
+              break
+            else:
+              continue
+            self.log(car_location)
+          work_day_level = self.travel_times_new[entity]["work_day_level"]
+          work_day_person = self.travel_times_new[entity]["work_day_person"]
+          working_day_return_code, working_day = self.function_library.is_it_a_work_day_today(work_day_person)
+          if working_day_return_code == work_day_level and car_location in start_locations:
+            travel_time_lookup = self.travel_times_new[entity]["default_travel_time"]
+            if new_travel_time > travel_time_lookup:
+              if alert_sent == False:
+                self.travel_times_new[entity]["alert_sent"] = True
+                friendly_name = self.get_state(entity, attribute = "friendly_name").lower()
+                traffic_delays_text = "Travel time for " + friendly_name + " has delays. " + str(travel_time_lookup) + " minutes."
+                self.log(traffic_delays_text)
+                self.call_service(globals.max_telegram, title = "Traffic delays", message = traffic_delays_text)
+                self.call_service(globals.max_app,  title = traffic_delays_text,\
+                                                    message = "TTS",\
+                                                    data = {"media_stream": "alarm_stream",\
+                                                            "tts_text": "There are traffic delays."})
               else:
-                continue
-              self.log(car_location)
-            work_day_level = self.travel_times_new[entity]["work_day_level"]
-            work_day_person = self.travel_times_new[entity]["work_day_person"]
-            working_day_return_code, working_day = self.function_library.is_it_a_work_day_today(work_day_person)
-            if working_day_return_code == work_day_level and car_location in start_locations:
-              travel_time_lookup = self.travel_times_new[entity]["default_travel_time"]
-              if new_travel_time > travel_time_lookup:
-                if alert_sent == False:
-                  self.travel_times_new[entity]["alert_sent"] = True
-                  friendly_name = self.get_state(entity, attribute = "friendly_name").lower()
-                  self.log("Travel time for " + friendly_name + " has delays. " + str(travel_time_lookup) + " minutes.")
-                  self.call_service(globals.max_app,  title = "There are traffic delays.",\
-                                                      message = "TTS",\
-                                                      data = {"media_stream": "alarm_stream",\
-                                                              "tts_text": "There are traffic delays."})
-                else:
-                  self.log("Alert already sent (a).")
-              if new_travel_time < travel_time_lookup:
-                if alert_sent == True:
-                  self.log("Alert already sent (b).")
-                self.travel_times_new[entity]["alert_sent"] = False
+                self.log("Alert already sent (a).")
+            if new_travel_time < travel_time_lookup:
+              if alert_sent == True:
+                self.log("Alert already sent (b).")
+              self.travel_times_new[entity]["alert_sent"] = False
                 
   
   ###############################################################################################################
@@ -296,3 +305,11 @@ class MiscAutomations(hass.Hass):
       address = geolocator.reverse(current_location)
     return address
 
+  def ping_devices(self, cb_args):
+    #self.log("Ping devices.")
+    devices = cb_args["devices"]
+    #self.log(devices)
+    for device in devices:
+      #self.log(device)
+      self.call_service("homeassistant/update_entity", entity_id = device)
+      
