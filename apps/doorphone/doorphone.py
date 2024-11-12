@@ -1,7 +1,7 @@
 # Doorphone App
 #
-# Max Hodgson 2023
-# Version: 10052023.01
+# Max Hodgson 2024
+# Version: 20241112.01
 #
 # Doorphone automations for Grandstream SIP doorphone.
 #
@@ -63,6 +63,7 @@ class Doorphone(hass.Hass):
     #self.doorphone_event_type_entity = self.get_entity(self.doorphone_event_type)
     self.doorphone_message_title = "Door Phone Alert"
 
+    
     #snapshot_filename, latest_picture_filename = self.cctv_library.get_picture_from_frigate("front_doorbell", "person")
     #self.log("Snapshot filename: " + str(snapshot_filename))
     #self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.(Doorphone)")    
@@ -70,6 +71,7 @@ class Doorphone(hass.Hass):
 
     # Testing:
     #self.take_picture(camera_location = self.camera_location, picture_type = "doorbell", picture_caption = "Doorbell Button Pressed (API).")
+    #snapshot_filename = self.cctv_library.get_picture_from_frigate("front_doorbell", "person")
     #self.take_picture("front_doorbell", "doorphone", "test")
     #self.cctv_library.take_picture(self.camera_location = "front_doorbell", picture_type = "doorbell", picture_caption = "Test.")
     #self.run_in(self.cctv_library.get_latest_camera_picture, 1, image_url = self.camera_image_url, image_filename = "/config/tmp/test.jpg")
@@ -228,13 +230,13 @@ class Doorphone(hass.Hass):
       self.log("Snapshot filename: " + str(snapshot_filename))
       self.log("Door phone person at front (new), sending message.")
       if self.get_state("binary_sensor.internet_down") == "on":
-        self.call_service(globals.max_telegram, title = "Person at front.", message = "Person at Front (new Doorphone version).")
+        #self.call_service(globals.max_telegram, title = "Person at front door.", message = "Person detected at the front door.")
         try:
-          self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front.")
+          self.call_service("telegram_bot/send_photo", file = self.latest_camera_image, caption = "Person at front door.")
         except Exception:
           self.log("Unable to send photo via Telegram.")
-        self.call_service(globals.max_app, title = "Doorphone Alert (New)",\
-                                           message = "Person Detected at Front (Click to view camera).",\
+        self.call_service(globals.max_app, title = "Doorphone Alert",\
+                                           message = "Person Detected at Front Door (Click to view camera).",\
                                            data = {"channel":"Front_Door",\
                                                    "tag":"Person",\
                                                    "image":event_picture_url,\
