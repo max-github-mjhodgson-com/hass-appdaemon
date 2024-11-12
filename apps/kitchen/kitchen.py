@@ -31,22 +31,29 @@ class Kitchen(hass.Hass):
     self.kettle_gone_to_zero_handler = 0
     self.kettle_message_sent = 0
     self.dishwasher_trigger = 0
+    self.dishwasher_status_select = "input_select.dishwasher_status"
+    self.dishwasher_end_timer = "timer.dishwasher_off_timeout"
 
-    # State monitors.
+    # State monitors:
     self.kettle_power_on = self.listen_state(self.on_kettle_on, globals.kettle, new = "on", old = "off")
     self.kettle_power_off = self.listen_state(self.on_kettle_off, globals.kettle, new = "off", old = "on")
     self.kettle_power_threshold_handler = self.listen_state(self.on_kettle_power_threshold_reached, globals.kettle_threshold, new = "on", old = "off", duration = "10")
-    self.dishwash_status_change_handler = self.listen_state(self.on_dishwasher_status_change, "sensor.teckin07_instant_power", duration = 10)
+    self.listen_state(self.on_dishwasher_status_change, "sensor.teckin07_instant_power", duration = 10)
+    self.listen_state(self.on_dishwasher_finished, "timer.dishwasher_finished_timeout")
+    self.listen_state(self.on_dishwasher_off, self.dishwasher_end_timer, duration = 600, immediate = True)
 
-    # Event monitors.
+    # Event monitors:
     self.kettle_power_timer_started = self.listen_event(self.on_kettle_timer_start, "timer.started", entity_id = globals.kettle_timer )
     self.kettle_power_timer_finished_handler = self.listen_event(self.on_kettle_timer_finished, "timer.finished", entity_id = globals.kettle_timer )
     self.listen_for_kettle_on_button_press_handler = self.listen_state(self.on_button_press_turn_kettle_on, "input_button.kettle_on")
+    
+    # Timed events:
+    self.run_daily(self.timed_kettle_on, "14:50:00")
 
 ###############################################################################################################
 # Callback functions:
 ###############################################################################################################
-  def on_kettle_on(self, entity, attribute, old, new, kwargs):
+  def on_kettle_on(self, entity, attribute, old, new, cb_args):
     self.log("Kettle power switched ON.")
     #if function_library.is_house_occupied() == 1:
     #  self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "300")
@@ -62,7 +69,7 @@ class Kitchen(hass.Hass):
       finally:
        self.log("Kettle reset to zero listener was cancelled.")
 
-  def on_kettle_off(self, entity, attribute, old, new, kwargs):
+  def on_kettle_off(self, entity, attribute, old, new, cb_args):
     self.log("Kettle power switched OFF.")
     self.call_service("timer/cancel", entity_id = globals.kettle_timer)
     self.kettle_message_sent = 0
@@ -70,22 +77,22 @@ class Kitchen(hass.Hass):
     #if self.kettle_gone_to_zero_handler != 0:
     #  self.log(self.kettle_gone_to_zero_handler)
 
-  def on_kettle_timer_start(self, event, data, kwargs):
+  def on_kettle_timer_start(self, event, data, cb_args):
     self.log("Kettle timer started.")
     self.turn_on(globals.kettle_timer_active)
     
-  def on_kettle_timer_finished(self, event, data, kwargs):
+  def on_kettle_timer_finished(self, event, data, cb_args):
     self.log("Kettle timer finished.")
     self.call_service("switch/turn_off", entity_id = globals.kettle)
     self.turn_off(globals.kettle_timer_active)
 
-  def on_kettle_power_threshold_reached(self, entity, attribute, old, new, kwargs):
+  def on_kettle_power_threshold_reached(self, entity, attribute, old, new, cb_args):
     self.log("Kettle Power Threshold Reached.")
     self.log(self.kettle_power_threshold_handler)
     self.kettle_gone_to_zero_handler = self.listen_state(self.on_kettle_return_to_zero, globals.kettle_threshold, new = "off", old = "on", duration = "10", oneshot = "true")
     #self.call_service("timer/start", entity_id = globals.kettle_timer)
     
-  def on_kettle_return_to_zero(self, entity, attribute, old, new, kwargs):
+  def on_kettle_return_to_zero(self, entity, attribute, old, new, cb_args):
     self.log("Kettle has returned to zero.")
     self.log(self.kettle_gone_to_zero_handler)
     self.call_service("timer/start", entity_id = globals.kettle_timer, duration = "1")
@@ -102,40 +109,51 @@ class Kitchen(hass.Hass):
     #if self.kettle_gone_to_zero_handler != 0:
     #  self.cancel_listen_state(self.kettle_gone_to_zero_handler)
 
-  def on_button_press_turn_kettle_on(self, entity, attribute, old, new, kwargs):
+  def on_button_press_turn_kettle_on(self, entity, attribute, old, new, cb_args):
     self.log("Kettle Button Pressed.")
     self.turn_on(globals.kettle)
 
-  def on_dishwasher_status_change(self, entity, attribute, old, new, kwargs):
-    dishwasher_status_select = "input_select.dishwasher_status"
-    
-    if old != "unavailable" and new != "unavailable":
+  def on_dishwasher_status_change(self, entity, attribute, old, new, cb_args):
+    self.log(old)
+    self.log(new)
+    if str(old) != "unavailable" and str(new) != "unavailable" and old != None and new != None:
       self.log("Dishwasher status change.")
       self.log("Dishwasher new: " + str(new))
       self.log("Dishwasher old: " + str(old))
-      current_dishwasher_state = self.get_state(dishwasher_status_select)
-      match new:
-        case 0:
-          self.log("Dishwasher is off.")
-          self.select_option(dishwasher_status_select, "Off")
-          if old > 0:
-            self.log("Dishwasher has finished.")
-            self.select_option(dishwasher_status_select, "Finished")
-            self.dishwasher_trigger = 0
-        case 1:
-          if old == "0":
-            self.log("Dishwasher is running.")
-            self.select_option(dishwasher_status_select,"Running")
-        case _ if int(new) > 50:
-          self.log("Dishwasher has started.")
-          self.select_option(dishwasher_status_select,"Running")
-          self.dishwasher_trigger = 1
-        case _ if int(new) > 1900:
-          self.log("Dishwasher is running (heating).")
-          self.select_option(dishwasher_status_select,"Running (Heating)")
-          self.dishwasher_trigger = 1
+      current_dishwasher_state = self.get_state(self.dishwasher_status_select)
+      self.log("Current dishwasher state: " + str(current_dishwasher_state))
+      if (int(old) == 0 and int(new) > 50) and current_dishwasher_state == "Off":
+        self.select_option(self.dishwasher_status_select,"Running")
+        self.log("Dishwasher has started.")
+      if int(new) > 1500:
+        self.select_option(self.dishwasher_status_select,"Running (Heating)")
+        self.log("Dishwasher is heating.")
+      if int(old) > 1500 and int(new) < 90:
+        self.select_option(self.dishwasher_status_select,"Running")
+        self.log("Dishwasher has stopped heating.")
+      if int(old) == 1 and int(new) == 0:
+        self.call_service("timer/start", entity_id = self.dishwasher_end_timer)
+        self.log("Dishwasher finish timer started.")
+        self.select_option(self.dishwasher_status_select,"Running")
+      if int(new) == 1 and int(old) == 0:
+        #self.call_service("timer/cancel", entity_id = "timer.dishwasher_finished_timeout")
+        self.call_service("timer/start", entity_id = self.dishwasher_end_timer)
+        self.log("Dishwasher finish timer restarted.")
+        self.select_option(self.dishwasher_status_select,"Running")
 
-    # Start power > 1900
+  def on_dishwasher_finished(self, entity, attribute, old, new, cb_args):
+    self.select_option(self.dishwasher_status_select, "Finished")
+    self.log("Dishwasher has finished.")
+    
+  def on_dishwasher_off(self, entity, attribute, old, new, cb_args):
+    if old != "unavailable" and new != "unavailable" and old != None:
+      self.log("Dishwasher finished timeout.")
+      self.select_option(self.dishwasher_status_select, "Off")
+
+  def timed_kettle_on(self, cb_args):
+    house_mode_state = self.function_library.is_house_occupied()
+    if house_mode_state == 1:
+      self.turn_on(globals.kettle)
 
 ###############################################################################################################
 # Other functions:
