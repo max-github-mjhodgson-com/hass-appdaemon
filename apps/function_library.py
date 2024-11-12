@@ -89,8 +89,12 @@ class FunctionLibrary(hass.Hass):
     return cardinal
 
   def get_wind_direction(self):
-    wind_bearing_sensor = float(self.get_state(globals.wind_bearing))
-    wind_direction = self.degrees_to_cardinal(int(wind_bearing_sensor))
+    wind_bearing = self.get_state(globals.wind_bearing)
+    if wind_bearing != None:
+      wind_bearing_sensor = float()
+      wind_direction = self.degrees_to_cardinal(int(wind_bearing_sensor))
+    else:
+      wind_direction = "Unknown"
     return wind_direction
 
   def input_text_event(self, event_service_data):
