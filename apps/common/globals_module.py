@@ -82,10 +82,8 @@ doorphone_ping = "binary_sensor.door_phone_ping"
 cards_garage_door = secrets.cards_garage_door
 
 # CCTV:
-cctv_media_location = "/config/media/cctv"
-#frontdoor_camera = "camera.front_door"
+cctv_media_location = "/homeassistant/media/cctv"
 front_doorbell = "front_doorbell"
-#frontdoor_camera = "camera.front_doorbell"
 frontdoor_camera = "camera." + front_doorbell
 frigate_port = "5000"
 frigate_current_frontdoor_pic_url =  "http://" + secrets.frigate_hostname + ":" + frigate_port + "/api/front_doorbell/latest.jpg"
@@ -94,6 +92,19 @@ front_doorbell_person_detection_switch = "input_boolean.person_detection_front_d
 lovelace_cctv_tab = "/lovelace/10"
 front_motion_detection_off_input_number = "input_number.turn_off_person_detection_front_doorbell"
 persons_in_zone_count = {front_doorbell: "sensor.garden_person_count"}
+camera_details = { "front_doorbell" : {
+                                        "location": "Front Doorbell",
+                                        "sensor": "sensor.cctv_front_doorbell_last_event_id",
+                                        "friendly_name": "Front Doorbell Last Event ID",
+                                        "detection_message": "Person detected at frontdoor.",
+                                        "notification_switch": "input_boolean.person_detection_front_doorbell",
+                                        "frigate_url": "http://" + secrets.frigate_hostname + ":" + frigate_port + "/api/front_doorbell/latest.jpg",
+                                        "persons_in_zone_count": "sensor.garden_person_count",
+                                        "notification_text": "Person detected at frontdoor.",
+                                        "app_notification_title": "Doorphone Alert",
+                                        "app_channel": "Front_Door",
+                                        },
+                }
 
 # Squeezeboxes:
 squeezebox_power_off_duration = "7200"
