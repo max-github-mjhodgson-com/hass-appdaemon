@@ -14,7 +14,7 @@ import globals_module as globals
 
 from datetime import date, datetime, time
 from requests import Session
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim  # pip3 install geopy
 
 class MiscAutomations(hass.Hass):
   
@@ -31,16 +31,18 @@ class MiscAutomations(hass.Hass):
     self.sab_pause_duration_in_minutes = 930
     self.weather = globals.weather # Another temp fix until I can get a reliable weather API.
     
-    self.travel_times_new = { "sensor.drive_from_home_to_work": { "default_travel_time": 20, 
+    # This is for the setting up of the sensors for the travel time alerts.
+    self.travel_times_new = { "sensor.drive_from_home_to_work": { "default_travel_time": 30,  # Values above this will trigger an alert.
                                                                   "car_location_id": globals.maxs_cars,
-                                                                  "start_locations": ["Home", "Home_b"],
-                                                                  "notification": "placeholder",
-                                                                  "work_day_level": 0,
-                                                                  "work_day_person": "max",
-                                                                  "time_range_sensor": "binary_sensor.travel_time_test",
-                                                                  "alert_sent": False,
+                                                                  "start_locations": ["Home", "Home_b"],  # Only send an alert if car is in this location.
+                                                                  "notification": "placeholder",  # TBA Choose which devices to send an alert to.
+                                                                  "work_day_level": 0,  # Choose which days to send an alert on.
+                                                                  "work_day_person": "max", #  Person's workday to look up.
+                                                                  #"time_range_sensor": "binary_sensor.travel_time_test",
+                                                                  "time_range_sensor": "binary_sensor.travel_time_from_home_to_work",
+                                                                  "alert_sent": False,  # When an alert is sent this gets set to true to stop repeats.
                                                                   "enabled": True,
-                                                                  "handler": ""
+                                                                  "handler": ""  # The handler value is stored here when the sensor is created.
                                                                 },
                               "sensor.drive_from_work_to_home": { "default_travel_time": 30,
                                                                   "car_location_id": globals.maxs_cars,
@@ -241,7 +243,8 @@ class MiscAutomations(hass.Hass):
               break
             else:
               continue
-            self.log(car_location)
+            if self.function_library.debug():
+              self.log(car_location)
           work_day_level = self.travel_times_new[entity]["work_day_level"]
           work_day_person = self.travel_times_new[entity]["work_day_person"]
           working_day_return_code, working_day = self.function_library.is_it_a_work_day_today(work_day_person)
@@ -252,7 +255,8 @@ class MiscAutomations(hass.Hass):
                 self.travel_times_new[entity]["alert_sent"] = True
                 friendly_name = self.get_state(entity, attribute = "friendly_name").lower()
                 traffic_delays_text = "Travel time for " + friendly_name + " has delays. " + str(travel_time_lookup) + " minutes."
-                self.log(traffic_delays_text)
+                if self.function_library.debug():
+                  self.log(traffic_delays_text)
                 self.call_service(globals.max_telegram, title = "Traffic delays", message = traffic_delays_text)
                 self.call_service(globals.max_app,  title = traffic_delays_text,\
                                                     message = "TTS",\
